@@ -1,24 +1,36 @@
+/* Old-School Akai MPC (Bianco / Grigio / Rosso) Design System */
 :root {
-  --bg-root: #0f1116;
-  --bg-panel: #171a22;
-  --bg-elevated: #202430;
-  --bg-pad-empty: #1b1f29;
-  --border-subtle: #292f3d;
-  --border-strong: #3d465a;
+  --bg-root: #eceae3;        /* Vintage Akai warm off-white chassis */
+  --bg-panel: #e2dfd6;       /* Recessed hardware faceplate */
+  --bg-elevated: #f5f4ef;    /* Raised white-grey hardware keycap */
+  --bg-well: #d4d0c5;        /* Sunken control well */
+  --bg-lcd: #172026;         /* Classic dark backlit MPC LCD screen */
+  --bg-pad-empty: #cbc7bc;   /* Empty light-grey rubber pad */
+  --bg-pad-loaded: #5d5a54;  /* Iconic MPC dark-grey rubber pad */
 
-  --text-primary: #f3f5f8;
-  --text-secondary: #98a2b3;
-  --text-muted: #667085;
+  --border-subtle: #c5c0b4;
+  --border-strong: #9e998c;
 
-  --accent-primary: #ff5a36;
-  --accent-rec: #ef4444;
-  --accent-resample: #f59e0b;
-  --accent-ok: #22c55e;
-  --accent-info: #38bdf8;
+  --text-primary: #1a1b1e;   /* Crisp dark hardware silkscreen ink */
+  --text-secondary: #52514c;
+  --text-muted: #78756d;
+  --text-lcd: #9ef0c0;       /* Classic backlit LCD phosphor readout */
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --accent-primary: #cc2222; /* Iconic Akai Red */
+  --accent-rec: #d62424;
+  --accent-resample: #c26a0a;
+  --accent-ok: #1ea853;
+  --accent-info: #2c5f8a;
+
+  /* Hardware LED Meter Zones */
+  --led-green: #22c55e;
+  --led-yellow: #eab308;
+  --led-red: #ef4444;
+  --led-off: #272b30;
+
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 14px;
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;

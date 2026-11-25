@@ -4,6 +4,8 @@ import { useStore } from '../../state/useStore';
 import { audioEngine } from '../../audio/AudioEngine';
 import { sequencerEngine } from '../../audio/SequencerEngine';
 
+const TOP_VU_SEGS = 8;
+
 export const TopBar: React.FC = () => {
   const bpm = useStore((s) => s.project.bpm);
   const setBpm = useStore((s) => s.setBpm);
@@ -16,17 +18,21 @@ export const TopBar: React.FC = () => {
   const loadStarterKit = useStore((s) => s.loadStarterKit);
   const clearProject = useStore((s) => s.clearProject);
 
-  const vuFillRef = useRef<HTMLDivElement | null>(null);
+  const vuSegRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const tapBtnRef = useRef<HTMLButtonElement | null>(null);
   const tapTimesRef = useRef<number[]>([]);
   const dragRef = useRef<{ startY: number; startBpm: number; moved: boolean } | null>(null);
 
   useEffect(() => {
     let raf = 0;
+    let smoothed = 0;
     const tick = () => {
-      if (vuFillRef.current) {
-        const peak = audioEngine.getOutputPeak();
-        vuFillRef.current.style.height = `${Math.min(100, Math.round(peak * 115))}%`;
+      const peak = audioEngine.getOutputPeak();
+      smoothed = peak > smoothed ? peak : smoothed * 0.84;
+      const lit = Math.round(Math.min(1, smoothed * 1.15) * TOP_VU_SEGS);
+      for (let i = 0; i < TOP_VU_SEGS; i++) {
+        const el = vuSegRefs.current[i];
+        if (el) el.classList.toggle('lit', i < lit);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -54,7 +60,6 @@ export const TopBar: React.FC = () => {
     e.preventDefault();
     void audioEngine.unlock();
 
-    // Instant visual pulse on beat
     const btn = tapBtnRef.current;
     if (btn) {
       btn.classList.remove('tap-pulse');
@@ -64,8 +69,8 @@ export const TopBar: React.FC = () => {
 
     const now = performance.now();
     const prev = tapTimesRef.current;
-    // Reset sequence if pause > 2.2s
-    const taps = prev.length > 0 && now - prev[prev.length - 1] > 2200 ? [now] : [...prev, now].slice(-6);
+    const taps =
+      prev.length > 0 && now - prev[prev.length - 1] > 2200 ? [now] : [...prev, now].slice(-6);
     tapTimesRef.current = taps;
 
     if (taps.length >= 2) {
@@ -86,8 +91,7 @@ export const TopBar: React.FC = () => {
       <header className="top-bar">
         <div className="brand-cluster">
           <div className="brand-logo" title="Simpler — Un campionatore facile.">
-            <span className="brand-dot" />
-            <span>Simpler</span>
+            <span className="brand-badge-akai">SIMPLER</span>
           </div>
 
           <button
@@ -117,8 +121,20 @@ export const TopBar: React.FC = () => {
         </div>
 
         <div className="top-actions">
-          <div className="vu-meter" aria-hidden="true">
-            <div ref={vuFillRef} className="vu-fill" />
+          {/* Classic Segmented LED VU Meter (Green -> Yellow -> Red) */}
+          <div className="vu-meter-seg" aria-hidden="true">
+            {Array.from({ length: TOP_VU_SEGS }, (_, i) => {
+              const zone = i >= 7 ? 'red' : i >= 5 ? 'yellow' : 'green';
+              return (
+                <span
+                  key={i}
+                  ref={(el) => {
+                    vuSegRefs.current[i] = el;
+                  }}
+                  className={`led-seg ${zone}`}
+                />
+              );
+            })}
           </div>
 
           <button
@@ -170,7 +186,12 @@ export const TopBar: React.FC = () => {
         <div className="modal-backdrop" onClick={() => setMenuOpen(false)}>
           <div className="modal-card" style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
-              <h2 className="modal-title">Menu</h2>
+              <div>
+                <h2 className="modal-title">SIMPLER</h2>
+                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
+                  Un campionatore facile.
+                </div>
+              </div>
               <button type="button" className="icon-btn" onClick={() => setMenuOpen(false)}>
                 <X size={16} />
               </button>

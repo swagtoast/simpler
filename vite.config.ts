@@ -10,13 +10,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg', 'worklets/recorder-processor.js'],
+      includeAssets: ['icons/icon.svg', 'worklets/recorder-processor.js', 'worklets/fx-processor.js'],
       manifest: {
         name: 'Simpler — Un campionatore facile.',
         short_name: 'Simpler',
         description: 'Un campionatore facile.',
-        theme_color: '#111215',
-        background_color: '#111215',
+        theme_color: '#e6e3db',
+        background_color: '#eceae3',
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: base,

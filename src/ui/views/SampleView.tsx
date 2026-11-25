@@ -3,6 +3,7 @@ import {
   Radio,
   Film,
   SlidersHorizontal,
+  SlidersVertical,
   Piano,
   Scissors,
   ArrowLeftRight,
@@ -28,9 +29,11 @@ export const SampleView: React.FC = () => {
   const isRecording = useStore((s) => s.isRecording);
   const recordingPadId = useStore((s) => s.recordingPadId);
   const recordingSource = useStore((s) => s.recordingSource);
+  const padMixerMode = useStore((s) => s.padMixerMode);
 
   const setActiveBank = useStore((s) => s.setActiveBank);
   const setToolMode = useStore((s) => s.setToolMode);
+  const togglePadMixerMode = useStore((s) => s.togglePadMixerMode);
   const setEditorOpen = useStore((s) => s.setEditorOpen);
   const setKeyboardOpen = useStore((s) => s.setKeyboardOpen);
   const setRecordingState = useStore((s) => s.setRecordingState);
@@ -173,6 +176,16 @@ export const SampleView: React.FC = () => {
         </div>
 
         <div className="action-strip">
+          <button
+            type="button"
+            className={`pill-btn ${padMixerMode ? 'active-primary' : ''}`}
+            onClick={togglePadMixerMode}
+            title="Mostra fader volume e VU meter sui pad"
+          >
+            <SlidersVertical size={13} />
+            <span>VOL</span>
+          </button>
+
           <button
             type="button"
             className="pill-btn"

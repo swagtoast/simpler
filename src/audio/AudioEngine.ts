@@ -1,6 +1,8 @@
 // Singleton ultra-low-latency Web Audio Engine.
 // Lives completely outside React so audio scheduling, meters, and playheads never trigger UI re-renders.
 
+import { PerformFxChain } from './PerformFxEngine';
+
 export interface DecodedSampleEntry {
   buffer: AudioBuffer;
   reversedBuffer: AudioBuffer | null;
@@ -9,6 +11,7 @@ export interface DecodedSampleEntry {
 class AudioEngineImpl {
   private ctx: AudioContext | null = null;
   private masterInput: GainNode | null = null;
+  private fxChain: PerformFxChain | null = null;
   private masterLimiter: DynamicsCompressorNode | null = null;
   private masterOutput: GainNode | null = null;
   private analyser: AnalyserNode | null = null;
@@ -16,6 +19,8 @@ class AudioEngineImpl {
 
   private workletLoaded = false;
   private workletLoadingPromise: Promise<void> | null = null;
+  private fxWorkletLoaded = false;
+  private fxWorkletLoadingPromise: Promise<void> | null = null;
   private unlocked = false;
 
   private samples = new Map<string, DecodedSampleEntry>();
@@ -33,6 +38,8 @@ class AudioEngineImpl {
       this.masterInput = this.ctx.createGain();
       this.masterInput.gain.value = 0.92;
 
+      this.fxChain = new PerformFxChain(this.ctx);
+
       // Transparent safety brickwall-style limiter so students never clip speakers
       this.masterLimiter = this.ctx.createDynamicsCompressor();
       this.masterLimiter.threshold.value = -1.5;
@@ -48,12 +55,18 @@ class AudioEngineImpl {
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.7;
 
-      this.masterInput.connect(this.masterLimiter);
+      this.masterInput.connect(this.fxChain.input);
+      this.fxChain.output.connect(this.masterLimiter);
       this.masterLimiter.connect(this.masterOutput);
       this.masterOutput.connect(this.analyser);
       this.masterOutput.connect(this.ctx.destination);
     }
     return this.ctx;
+  }
+
+  get performFx(): PerformFxChain {
+    this.context;
+    return this.fxChain!;
   }
 
   get inputNode(): GainNode {
@@ -107,9 +120,39 @@ class AudioEngineImpl {
       src.start(0);
       this.unlocked = true;
       this.unlockListeners.forEach((cb) => cb());
+      // Preload perform FX worklet quietly in background right after unlock
+      void this.ensureFxWorklet();
     }
 
     return ctx;
+  }
+
+  async ensureFxWorklet(): Promise<boolean> {
+    const ctx = this.context;
+    if (this.fxWorkletLoaded) return true;
+    if (!ctx.audioWorklet) return false;
+
+    if (!this.fxWorkletLoadingPromise) {
+      const workletUrl = `${import.meta.env.BASE_URL}worklets/fx-processor.js`;
+      this.fxWorkletLoadingPromise = ctx.audioWorklet
+        .addModule(workletUrl)
+        .then(() => {
+          this.fxWorkletLoaded = true;
+          this.fxChain?.attachFxWorklet();
+        })
+        .catch((err) => {
+          this.fxWorkletLoadingPromise = null;
+          console.warn('Perform FX AudioWorklet failed to load:', err);
+          throw err;
+        });
+    }
+
+    try {
+      await this.fxWorkletLoadingPromise;
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async ensureRecorderWorklet(): Promise<boolean> {

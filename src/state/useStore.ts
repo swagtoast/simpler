@@ -14,6 +14,7 @@ import {
 import { audioEngine } from '../audio/AudioEngine';
 import { voiceManager } from '../audio/VoiceManager';
 import { generateStarterKit } from '../audio/StarterKit';
+import { PerformFxId } from '../audio/PerformFxEngine';
 import { cropBuffer, normalizeBuffer } from '../audio/AutoChop';
 import {
   clearAllStoredSamples,
@@ -73,6 +74,11 @@ export interface AppState {
   mutedPads: number[];
   pianoRollOpen: boolean;
   exportModalOpen: boolean;
+
+  // Phase 3: Inline Pad Mixer + Simple Perform FX
+  padMixerMode: boolean;
+  fxHold: boolean;
+  fxValues: Record<PerformFxId, number>;
 
   // Actions
   initApp: () => Promise<void>;
@@ -143,6 +149,13 @@ export interface AppState {
   updateNoteVelocity: (seqId: string, noteId: string, velocity: number) => void;
   quantizeSequenceNow: (seqId: string) => void;
   clearPadFromSequence: (seqId: string, padId: number) => void;
+
+  // Phase 3 actions
+  togglePadMixerMode: () => void;
+  setPadMixerMode: (on: boolean) => void;
+  setFxValue: (id: PerformFxId, value: number) => void;
+  toggleFxHold: () => void;
+  resetAllFx: () => void;
 }
 
 let toastTimer: number | null = null;
@@ -188,6 +201,17 @@ export const useStore = create<AppState>((set, get) => {
     mutedPads: [],
     pianoRollOpen: false,
     exportModalOpen: false,
+
+    padMixerMode: false,
+    fxHold: false,
+    fxValues: {
+      lpf: 0,
+      hpf: 0,
+      crush: 0,
+      delay: 0,
+      reverb: 0,
+      stutter: 0,
+    },
 
     initApp: async () => {
       if (get().initialized) return;
@@ -257,6 +281,9 @@ export const useStore = create<AppState>((set, get) => {
     },
     setBpm: (bpm) => {
       const clamped = Math.max(40, Math.min(240, Math.round(bpm * 10) / 10));
+      if (audioEngine.isUnlocked) {
+        audioEngine.performFx.setBpm(clamped);
+      }
       set((s) => {
         const project = { ...s.project, bpm: clamped };
         scheduleSaveMeta(project);
@@ -306,6 +333,9 @@ export const useStore = create<AppState>((set, get) => {
     updatePad: (padId, patch, recordUndo = false) => {
       const state = get();
       if (recordUndo) pushUndo(state.project);
+      if (typeof patch.volume === 'number') {
+        voiceManager.setPadLiveVolume(padId, patch.volume);
+      }
       const pads = state.project.pads.map((p) => (p.id === padId ? { ...p, ...patch } : p));
       const project = { ...state.project, pads };
       scheduleSaveMeta(project);
@@ -814,6 +844,42 @@ export const useStore = create<AppState>((set, get) => {
       const project = { ...state.project, sequences };
       scheduleSaveMeta(project);
       set({ project });
+    },
+
+    // --- Phase 3: Pad Mixer & Simple Perform FX ---
+    togglePadMixerMode: () => set((s) => ({ padMixerMode: !s.padMixerMode })),
+    setPadMixerMode: (on) => set({ padMixerMode: on }),
+
+    setFxValue: (id, value) => {
+      const clamped = Math.max(0, Math.min(1, value));
+      audioEngine.performFx.setBpm(get().project.bpm);
+      audioEngine.performFx.setFx(id, clamped);
+      set((s) => ({
+        fxValues: { ...s.fxValues, [id]: clamped },
+      }));
+    },
+
+    toggleFxHold: () => {
+      const next = !get().fxHold;
+      set({ fxHold: next });
+      if (!next) {
+        // Releasing HOLD drops all active FX cleanly on the beat!
+        get().resetAllFx();
+      }
+    },
+
+    resetAllFx: () => {
+      audioEngine.performFx.resetAll();
+      set({
+        fxValues: {
+          lpf: 0,
+          hpf: 0,
+          crush: 0,
+          delay: 0,
+          reverb: 0,
+          stutter: 0,
+        },
+      });
     },
   };
 });

@@ -4,9 +4,12 @@ import { audioEngine } from './AudioEngine';
 export interface ActiveVoice {
   id: number;
   padId: number;
+  sampleId: string;
   chokeGroup: number;
   source: AudioBufferSourceNode;
   envGain: GainNode;
+  volGain: GainNode;
+  velocity: number;
   startTime: number;
   regionStartSec: number;
   regionEndSec: number;
@@ -100,17 +103,21 @@ class VoiceManagerImpl {
       lastNode = highShelf;
     }
 
-    // Envelope Gain (click-free attack & release)
+    // Envelope Gain (click-free attack & release) + Dedicated Live Volume Gain (for real-time Pad Mixer faders)
     const envGain = ctx.createGain();
-    const targetGain = Math.max(0, pad.volume * velocity);
+    const volGain = ctx.createGain();
+    volGain.gain.setValueAtTime(Math.max(0, pad.volume), now);
+
+    const targetGain = Math.max(0.0001, velocity);
     const attackSec = Math.max(0.002, pad.attack);
     const releaseSec = Math.max(0.005, pad.release);
 
     envGain.gain.setValueAtTime(0.0001, now);
-    envGain.gain.linearRampToValueAtTime(Math.max(0.0001, targetGain), now + attackSec);
+    envGain.gain.linearRampToValueAtTime(targetGain, now + attackSec);
 
     lastNode.connect(envGain);
-    lastNode = envGain;
+    envGain.connect(volGain);
+    lastNode = volGain;
 
     // Stereo Pan
     if (Math.abs(pad.pan) > 0.01 && typeof ctx.createStereoPanner === 'function') {
@@ -132,7 +139,7 @@ class VoiceManagerImpl {
       const endFade = Math.min(0.008, playDurationWallSec * 0.25);
       const stopAt = now + playDurationWallSec;
       if (stopAt > now + attackSec + endFade) {
-        envGain.gain.setValueAtTime(Math.max(0.0001, targetGain), stopAt - endFade);
+        envGain.gain.setValueAtTime(targetGain, stopAt - endFade);
         envGain.gain.linearRampToValueAtTime(0.0001, stopAt);
       }
       source.start(now, regionStartSec, regionLengthSec);
@@ -142,9 +149,12 @@ class VoiceManagerImpl {
     const voice: ActiveVoice = {
       id: voiceId,
       padId: pad.id,
+      sampleId: pad.sampleId,
       chokeGroup: pad.chokeGroup,
       source,
       envGain,
+      volGain,
+      velocity,
       startTime: now,
       regionStartSec,
       regionEndSec,
@@ -255,6 +265,60 @@ class VoiceManagerImpl {
       this.stopVoice(id, now, 0.015);
     }
     this.taggedVoices.clear();
+  }
+
+  /**
+   * Smoothly updates live volume of any currently sounding voices for this pad (Pad Mixer fader drag).
+   */
+  setPadLiveVolume(padId: number, volume: number): void {
+    const now = audioEngine.context.currentTime;
+    const clamped = Math.max(0, Math.min(1.5, volume));
+    for (const v of this.voices.values()) {
+      if (v.padId === padId && !v.stopped) {
+        try {
+          v.volGain.gain.setTargetAtTime(clamped, now, 0.012);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
+  /**
+   * Computes real-time instantaneous signal level (0..1.2) for a pad's LED VU meter (Green/Yellow/Red)
+   * directly from the playing AudioBuffer window with zero extra AnalyserNode overhead.
+   */
+  getPadLiveLevel(padId: number, padVolume: number): number {
+    const ctx = audioEngine.context;
+    let peak = 0;
+
+    for (const v of this.voices.values()) {
+      if (v.padId !== padId || v.stopped) continue;
+      const buf = v.reverse
+        ? audioEngine.getReversedSample(v.sampleId)
+        : audioEngine.getSample(v.sampleId);
+      if (!buf) continue;
+
+      const elapsedSampleSec = Math.max(0, (ctx.currentTime - v.startTime) * v.playbackRate);
+      const regionLen = Math.max(0.001, v.regionEndSec - v.regionStartSec);
+      const offsetInRegion = v.loop ? elapsedSampleSec % regionLen : Math.min(regionLen, elapsedSampleSec);
+      const posSec = v.regionStartSec + offsetInRegion;
+
+      const ch0 = buf.getChannelData(0);
+      const centerIdx = Math.min(ch0.length - 1, Math.max(0, Math.floor(posSec * buf.sampleRate)));
+      const winEnd = Math.min(ch0.length, centerIdx + 256);
+
+      let localPeak = 0;
+      for (let i = centerIdx; i < winEnd; i += 4) {
+        const a = Math.abs(ch0[i]);
+        if (a > localPeak) localPeak = a;
+      }
+
+      const scaled = localPeak * padVolume * v.velocity * (v.released ? 0.35 : 1);
+      if (scaled > peak) peak = scaled;
+    }
+
+    return Math.min(1.25, peak);
   }
 
   /**

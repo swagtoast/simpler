@@ -12,6 +12,7 @@ import {
   Repeat,
   Piano,
   Eraser,
+  SlidersVertical,
 } from 'lucide-react';
 import { BANK_LABELS, BankId } from '../../state/types';
 import { useStore } from '../../state/useStore';
@@ -41,8 +42,10 @@ export const SequenceView: React.FC = () => {
   const pianoRollOpen = useStore((s) => s.pianoRollOpen);
   const exportModalOpen = useStore((s) => s.exportModalOpen);
   const keyboardOpen = useStore((s) => s.keyboardOpen);
+  const padMixerMode = useStore((s) => s.padMixerMode);
 
   const selectSequence = useStore((s) => s.selectSequence);
+  const togglePadMixerMode = useStore((s) => s.togglePadMixerMode);
   const addSequence = useStore((s) => s.addSequence);
   const duplicateSequence = useStore((s) => s.duplicateSequence);
   const clearSequence = useStore((s) => s.clearSequence);
@@ -313,13 +316,26 @@ export const SequenceView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button
             type="button"
+            className={`pill-btn ${padMixerMode ? 'active-primary' : ''}`}
+            onClick={() => {
+              setEraseMode(false);
+              togglePadMixerMode();
+            }}
+            title="Mostra fader volume e barre LED sui pad"
+          >
+            <SlidersVertical size={13} />
+            <span>VOL</span>
+          </button>
+
+          <button
+            type="button"
             className={`pill-btn ${eraseMode ? 'active-rec' : ''}`}
             disabled={!activeSeq || activeSeq.notes.length === 0}
             onClick={() => setEraseMode((v) => !v)}
             title="Tocca un pad per eliminare i suoi colpi da questa sequenza"
           >
             <Eraser size={13} />
-            <span>{eraseMode ? 'FINE ERASE' : 'ERASE'}</span>
+            <span>{eraseMode ? 'FINE' : 'ERASE'}</span>
           </button>
 
           <button

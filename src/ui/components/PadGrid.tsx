@@ -13,6 +13,8 @@ const KEYBOARD_MAP = [
   'z', 'x', 'c', 'v',
 ];
 
+const PAD_LED_SEGMENTS = 8;
+
 interface PadGridProps {
   onStartMicHold?: (padId: number) => void;
   onStopMicHold?: (padId: number) => void;
@@ -43,8 +45,10 @@ export const PadGrid: React.FC<PadGridProps> = ({
   const keyboardOpen = useStore((s) => s.keyboardOpen);
   const qrModalOpen = useStore((s) => s.qrModalOpen);
   const menuOpen = useStore((s) => s.menuOpen);
+  const padMixerMode = useStore((s) => s.padMixerMode);
 
   const selectPad = useStore((s) => s.selectPad);
+  const updatePad = useStore((s) => s.updatePad);
   const setDragSourcePadId = useStore((s) => s.setDragSourcePadId);
   const setToolMode = useStore((s) => s.setToolMode);
   const copyPad = useStore((s) => s.copyPad);
@@ -56,7 +60,12 @@ export const PadGrid: React.FC<PadGridProps> = ({
 
   const glowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const progressRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const cellRefs = useRef<(HTMLElement | null)[]>([]);
+  const padVuSegRefs = useRef<(HTMLSpanElement | null)[][]>(
+    Array.from({ length: 16 }, () => Array(PAD_LED_SEGMENTS).fill(null))
+  );
+  const smoothedLevels = useRef<Float32Array>(new Float32Array(16));
+
   const activePointers = useRef(
     new Map<
       number,
@@ -68,28 +77,48 @@ export const PadGrid: React.FC<PadGridProps> = ({
       }
     >()
   );
+  const mixerDragPointers = useRef(new Map<number, number>()); // pointerId -> padId
 
-  // 60fps direct DOM playhead, trigger glow & live mic level (zero React re-renders)
+  // 60fps direct DOM playhead, trigger glow, mic level & per-pad LED VU meters (zero React re-renders!)
   useEffect(() => {
     let raf = 0;
     const loop = () => {
       const recPadId = recorderService.recordingPadId;
       const recPeak = recorderService.currentInputPeak;
+      const state = useStore.getState();
+      const inMixer = state.padMixerMode && !eraseMode;
 
       for (let i = 0; i < 16; i++) {
         const padId = bankOffset + i;
+        const pad = state.project.pads[padId];
+
+        if (inMixer && pad?.hasSample) {
+          const live = voiceManager.getPadLiveLevel(padId, pad.volume);
+          const prev = smoothedLevels.current[i];
+          const next = live > prev ? live : prev * 0.84;
+          smoothedLevels.current[i] = next;
+
+          const litCount = Math.round(Math.min(1, next / 1.08) * PAD_LED_SEGMENTS);
+          const segs = padVuSegRefs.current[i];
+          for (let s = 0; s < PAD_LED_SEGMENTS; s++) {
+            const el = segs[s];
+            if (el) el.classList.toggle('lit', s < litCount);
+          }
+          continue;
+        }
+
         const glowEl = glowRefs.current[i];
         const progEl = progressRefs.current[i];
 
         if (recPadId === padId && recorderService.isRecording) {
-          if (glowEl) glowEl.style.opacity = Math.min(0.65, 0.2 + recPeak * 0.7).toFixed(3);
+          if (glowEl) glowEl.style.opacity = Math.min(0.7, 0.25 + recPeak * 0.7).toFixed(3);
           if (progEl) progEl.style.width = `${Math.min(100, Math.round(recPeak * 120))}%`;
           continue;
         }
 
         const st = voiceManager.getPadPlaybackState(padId);
         if (glowEl) {
-          const opacity = st.active ? Math.max(0.2, st.flash * 0.5) : st.flash * 0.42;
+          const opacity = st.active ? Math.max(0.24, st.flash * 0.6) : st.flash * 0.5;
           glowEl.style.opacity = opacity > 0.01 ? opacity.toFixed(3) : '0';
         }
         if (progEl) {
@@ -100,7 +129,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [bankOffset]);
+  }, [bankOffset, eraseMode]);
 
   // Desktop PC keyboard triggering (1-4 / Q-R / A-F / Z-V)
   useEffect(() => {
@@ -146,6 +175,14 @@ export const PadGrid: React.FC<PadGridProps> = ({
     };
   }, [bankOffset, editorOpen, keyboardOpen, qrModalOpen, menuOpen, selectPad]);
 
+  const handleMixerDrag = (el: HTMLElement, padId: number, clientY: number) => {
+    const rect = el.getBoundingClientRect();
+    if (rect.height <= 0) return;
+    const ratio = 1 - (clientY - rect.top) / rect.height;
+    const vol = Math.max(0, Math.min(1.5, Math.round(ratio * 150) / 100));
+    updatePad(padId, { volume: vol });
+  };
+
   const handlePointerDown = (
     e: React.PointerEvent<HTMLButtonElement>,
     pad: PadConfig,
@@ -156,10 +193,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-      // ignore if capture not supported
+      // ignore
     }
 
-    // Mode: ERASE pad notes from active sequence (1-tap simple erase!)
     if (eraseMode && onErasePad) {
       selectPad(pad.id);
       if ((seqNoteCounts?.[pad.id] ?? 0) > 0) {
@@ -168,7 +204,6 @@ export const PadGrid: React.FC<PadGridProps> = ({
       return;
     }
 
-    // Mode: COPY or SWAP (only on Sample tab)
     if (!playOnly && (toolMode === 'copy' || toolMode === 'swap')) {
       if (dragSourcePadId === null) {
         if (toolMode === 'copy' && !pad.hasSample) return;
@@ -186,7 +221,6 @@ export const PadGrid: React.FC<PadGridProps> = ({
       return;
     }
 
-    // Mode: RESAMPLE target selection
     if (!playOnly && toolMode === 'resample' && !recorderService.isRecording && onSelectResampleTarget) {
       selectPad(pad.id);
       onSelectResampleTarget(pad.id);
@@ -196,7 +230,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
     selectPad(pad.id);
     cellRefs.current[localIdx]?.classList.add('pressed');
 
-    // KOALA-STYLE INSTANT HOLD-TO-RECORD ON ANY EMPTY PAD (Sample tab only)
+    // Hold any empty pad to record directly from mic (Sample tab)
     if (!playOnly && !pad.hasSample && !recorderService.isRecording && onStartMicHold) {
       const entry = {
         padId: pad.id,
@@ -211,7 +245,6 @@ export const PadGrid: React.FC<PadGridProps> = ({
       return;
     }
 
-    // Loaded pad: instant 0-delay trigger + live sequencer overdub if REC is on!
     activePointers.current.set(e.pointerId, {
       padId: pad.id,
       micHold: false,
@@ -248,6 +281,8 @@ export const PadGrid: React.FC<PadGridProps> = ({
     }
   };
 
+  const showInlineMixer = padMixerMode && !eraseMode;
+
   return (
     <div className="pad-grid" role="grid" aria-label={`Bank ${BANK_LABELS[activeBank]} Pads`}>
       {bankPads.map((pad, idx) => {
@@ -258,6 +293,91 @@ export const PadGrid: React.FC<PadGridProps> = ({
         const noteCount = seqNoteCounts?.[pad.id] ?? 0;
         const isEraseTarget = eraseMode && noteCount > 0;
         const isEraseDimmed = eraseMode && noteCount === 0;
+
+        // INLINE PAD MIXER MODE: Vertical Volume Fader + Green/Yellow/Red LED VU Bar on each loaded pad!
+        if (showInlineMixer) {
+          const volPct = Math.round(pad.volume * 100);
+          const faderFillPct = Math.min(100, Math.round((pad.volume / 1.5) * 100));
+
+          if (!pad.hasSample) {
+            return (
+              <div key={pad.id} className="pad-cell mixer-pad empty">
+                <span className="pad-index">{labelCode}</span>
+                <span className="pad-name">—</span>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={pad.id}
+              ref={(el) => {
+                cellRefs.current[idx] = el;
+              }}
+              className={`pad-cell loaded mixer-pad ${isSelected ? 'selected' : ''}`}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <div className="mixer-pad-head">
+                <span className="mixer-pad-name">{pad.name}</span>
+                <span className="mixer-pad-pct">{volPct}%</span>
+              </div>
+
+              <div className="mixer-pad-body">
+                {/* Vertical Volume Fader */}
+                <div
+                  className="pad-fader-track"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    void audioEngine.unlock();
+                    selectPad(pad.id);
+                    try {
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                    } catch {
+                      // ignore
+                    }
+                    mixerDragPointers.current.set(e.pointerId, pad.id);
+                    handleMixerDrag(e.currentTarget, pad.id, e.clientY);
+                  }}
+                  onPointerMove={(e) => {
+                    if (mixerDragPointers.current.get(e.pointerId) !== pad.id) return;
+                    handleMixerDrag(e.currentTarget, pad.id, e.clientY);
+                  }}
+                  onPointerUp={(e) => {
+                    mixerDragPointers.current.delete(e.pointerId);
+                  }}
+                  onPointerCancel={(e) => {
+                    mixerDragPointers.current.delete(e.pointerId);
+                  }}
+                  onDoubleClick={() => updatePad(pad.id, { volume: 1 })}
+                  title="Trascina su/giù per regolare il volume (doppio tap = 100%)"
+                >
+                  <div className="pad-fader-fill" style={{ height: `${faderFillPct}%` }} />
+                  <div
+                    className="pad-fader-knob"
+                    style={{ bottom: `calc(${faderFillPct}% - 6px)` }}
+                  />
+                </div>
+
+                {/* Vertical Segmented LED VU Meter (Green -> Yellow -> Red) */}
+                <div className="pad-vu-bar" aria-hidden="true">
+                  {Array.from({ length: PAD_LED_SEGMENTS }, (_, segIdx) => {
+                    // Bottom-to-top rendering via column-reverse
+                    const zone = segIdx >= 7 ? 'red' : segIdx >= 5 ? 'yellow' : 'green';
+                    return (
+                      <span
+                        key={segIdx}
+                        ref={(el) => {
+                          padVuSegRefs.current[idx][segIdx] = el;
+                        }}
+                        className={`led-seg ${zone}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        }
 
         return (
           <button
@@ -303,7 +423,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
                   <span className="pad-badge erase-badge">×{noteCount}</span>
                 )}
                 {!eraseMode && isRecTarget && (
-                  <span className="pad-badge" style={{ background: '#ef4444', color: '#fff' }}>
+                  <span className="pad-badge" style={{ background: '#cc2222', color: '#fff' }}>
                     {recordingSource === 'resample' ? 'RSMP' : 'REC'}
                   </span>
                 )}
