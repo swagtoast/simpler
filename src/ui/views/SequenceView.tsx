@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Play,
   Square,
@@ -11,6 +11,7 @@ import {
   Trash2,
   Repeat,
   Piano,
+  Eraser,
 } from 'lucide-react';
 import { BANK_LABELS, BankId } from '../../state/types';
 import { useStore } from '../../state/useStore';
@@ -54,10 +55,23 @@ export const SequenceView: React.FC = () => {
   const setPianoRollOpen = useStore((s) => s.setPianoRollOpen);
   const setExportModalOpen = useStore((s) => s.setExportModalOpen);
   const setKeyboardOpen = useStore((s) => s.setKeyboardOpen);
+  const clearPadFromSequence = useStore((s) => s.clearPadFromSequence);
   const showToast = useStore((s) => s.showToast);
+
+  const [eraseMode, setEraseMode] = useState(false);
 
   const activeSeq = sequences.find((s) => s.id === activeSequenceId) ?? sequences[0];
   const progressRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Count how many hits each pad has in the active sequence (for lightweight ERASE badges)
+  const seqNoteCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    if (!activeSeq) return counts;
+    for (const n of activeSeq.notes) {
+      counts[n.padId] = (counts[n.padId] ?? 0) + 1;
+    }
+    return counts;
+  }, [activeSeq]);
 
   // 60fps progress bar on active playing sequence slot
   useEffect(() => {
@@ -281,7 +295,7 @@ export const SequenceView: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Bank Selector + 4x4 Pads RIGHT HERE so beginners drum directly into the beat! */}
+      {/* 3. Bank Selector + ERASE + KEYS + 4x4 Pads */}
       <div className="seq-bank-row">
         <div className="bank-switcher">
           {([0, 1, 2, 3] as BankId[]).map((b) => (
@@ -296,19 +310,59 @@ export const SequenceView: React.FC = () => {
           ))}
         </div>
 
-        <button
-          type="button"
-          className="pill-btn"
-          onClick={() => setKeyboardOpen(true)}
-          title="Suona melodie sul pad selezionato e registrali nella sequenza"
-        >
-          <Piano size={13} />
-          <span>KEYS</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            className={`pill-btn ${eraseMode ? 'active-rec' : ''}`}
+            disabled={!activeSeq || activeSeq.notes.length === 0}
+            onClick={() => setEraseMode((v) => !v)}
+            title="Tocca un pad per eliminare i suoi colpi da questa sequenza"
+          >
+            <Eraser size={13} />
+            <span>{eraseMode ? 'FINE ERASE' : 'ERASE'}</span>
+          </button>
+
+          <button
+            type="button"
+            className="pill-btn"
+            onClick={() => {
+              setEraseMode(false);
+              setKeyboardOpen(true);
+            }}
+            title="Suona melodie sul pad selezionato e registrali nella sequenza"
+          >
+            <Piano size={13} />
+            <span>KEYS</span>
+          </button>
+        </div>
       </div>
 
+      {eraseMode && activeSeq && (
+        <div className="mode-hint rec" style={{ fontSize: 12 }}>
+          <span>
+            Tocca un pad con <strong>×</strong> per toglierlo da <strong>{activeSeq.name}</strong> (puoi sempre fare Undo).
+          </span>
+          <button type="button" className="latency-banner-close" onClick={() => setEraseMode(false)}>
+            Fine
+          </button>
+        </div>
+      )}
+
       <div className="sample-body">
-        <PadGrid playOnly />
+        <PadGrid
+          playOnly
+          eraseMode={eraseMode}
+          seqNoteCounts={seqNoteCounts}
+          onErasePad={(padId) => {
+            if (!activeSeq) return;
+            clearPadFromSequence(activeSeq.id, padId);
+            const padName = pads[padId]?.name || 'Pad';
+            showToast(`Rimosso "${padName}" da ${activeSeq.name}`);
+            // Auto-exit erase mode if sequence is now completely empty
+            const remaining = activeSeq.notes.filter((n) => n.padId !== padId).length;
+            if (remaining === 0) setEraseMode(false);
+          }}
+        />
       </div>
 
       {pianoRollOpen && activeSeq && <PianoRollOverlay seqId={activeSeq.id} />}

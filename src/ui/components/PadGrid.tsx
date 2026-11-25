@@ -18,6 +18,9 @@ interface PadGridProps {
   onStopMicHold?: (padId: number) => void;
   onSelectResampleTarget?: (padId: number) => void;
   playOnly?: boolean;
+  eraseMode?: boolean;
+  seqNoteCounts?: Record<number, number>;
+  onErasePad?: (padId: number) => void;
 }
 
 export const PadGrid: React.FC<PadGridProps> = ({
@@ -25,6 +28,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
   onStopMicHold,
   onSelectResampleTarget,
   playOnly = false,
+  eraseMode = false,
+  seqNoteCounts,
+  onErasePad,
 }) => {
   const activeBank = useStore((s) => s.activeBank);
   const pads = useStore((s) => s.project.pads);
@@ -153,6 +159,15 @@ export const PadGrid: React.FC<PadGridProps> = ({
       // ignore if capture not supported
     }
 
+    // Mode: ERASE pad notes from active sequence (1-tap simple erase!)
+    if (eraseMode && onErasePad) {
+      selectPad(pad.id);
+      if ((seqNoteCounts?.[pad.id] ?? 0) > 0) {
+        onErasePad(pad.id);
+      }
+      return;
+    }
+
     // Mode: COPY or SWAP (only on Sample tab)
     if (!playOnly && (toolMode === 'copy' || toolMode === 'swap')) {
       if (dragSourcePadId === null) {
@@ -240,6 +255,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
         const isDragSource = pad.id === dragSourcePadId;
         const isRecTarget = pad.id === recordingPadId;
         const labelCode = `${BANK_LABELS[activeBank]}${idx + 1}`;
+        const noteCount = seqNoteCounts?.[pad.id] ?? 0;
+        const isEraseTarget = eraseMode && noteCount > 0;
+        const isEraseDimmed = eraseMode && noteCount === 0;
 
         return (
           <button
@@ -254,6 +272,8 @@ export const PadGrid: React.FC<PadGridProps> = ({
               isSelected ? 'selected' : '',
               isDragSource ? 'drag-source' : '',
               isRecTarget ? 'recording' : '',
+              isEraseTarget ? 'erase-target' : '',
+              isEraseDimmed ? 'erase-dimmed' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -279,14 +299,17 @@ export const PadGrid: React.FC<PadGridProps> = ({
             <div className="pad-top-row">
               <span className="pad-index">{labelCode}</span>
               <div className="pad-badges">
-                {isRecTarget && (
+                {isEraseTarget && (
+                  <span className="pad-badge erase-badge">×{noteCount}</span>
+                )}
+                {!eraseMode && isRecTarget && (
                   <span className="pad-badge" style={{ background: '#ef4444', color: '#fff' }}>
                     {recordingSource === 'resample' ? 'RSMP' : 'REC'}
                   </span>
                 )}
-                {pad.loop && <span className="pad-badge">LOOP</span>}
-                {pad.reverse && <span className="pad-badge">REV</span>}
-                {pad.chokeGroup > 0 && <span className="pad-badge">C{pad.chokeGroup}</span>}
+                {!eraseMode && pad.loop && <span className="pad-badge">LOOP</span>}
+                {!eraseMode && pad.reverse && <span className="pad-badge">REV</span>}
+                {!eraseMode && pad.chokeGroup > 0 && <span className="pad-badge">C{pad.chokeGroup}</span>}
               </div>
             </div>
 
