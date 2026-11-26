@@ -103,24 +103,17 @@ export const WorkshopQRModal: React.FC = () => {
             <span>{copied ? 'Copiato!' : 'Copia Link'}</span>
           </button>
           <span
-            className="toggle-chip on"
+            className="toggle-chip"
             style={{
-              background: isHttps ? 'rgba(34,197,94,0.16)' : 'rgba(245,158,11,0.18)',
-              borderColor: isHttps ? '#22c55e' : '#f59e0b',
+              background: isHttps ? '#dcfce7' : '#fef3c7',
+              borderColor: isHttps ? '#16a34a' : '#d97706',
+              color: isHttps ? '#14532d' : '#78350f',
+              boxShadow: 'none',
             }}
           >
             <Globe size={13} />
             {isHttps ? 'HTTPS Ready (Mic OK)' : 'Serve HTTPS per Mic'}
           </span>
-        </div>
-
-        <div className="workshop-tips">
-          <strong>Perfetto con i dati cellulari in classe (0 €):</strong>
-          <ul>
-            <li>L&apos;intera app pesa solo <strong>~110 KB</strong>: si apre in 1 secondo su 4G/5G e poi gira <strong>100% offline sul telefono</strong> (0 latenza di rete).</li>
-            <li>Il link <strong>HTTPS gratuito</strong> (GitHub Pages o Cloudflare Pages) abilita subito il <strong>microfono</strong> e l&apos;importazione di <strong>registrazioni schermo YouTube</strong> dalla galleria.</li>
-            <li>Consiglio agli studenti: togliere il silenzioso (iPhone) e usare speaker o cuffie cablate (evitare Bluetooth).</li>
-          </ul>
         </div>
       </div>
     </div>
