@@ -8,6 +8,7 @@ import {
   Download,
   Plus,
   Copy,
+  ClipboardPaste,
   Trash2,
   Repeat,
   Piano,
@@ -44,11 +45,13 @@ export const SequenceView: React.FC = () => {
   const exportModalOpen = useStore((s) => s.exportModalOpen);
   const keyboardOpen = useStore((s) => s.keyboardOpen);
   const padMixerMode = useStore((s) => s.padMixerMode);
+  const copiedSequence = useStore((s) => s.copiedSequence);
 
   const selectSequence = useStore((s) => s.selectSequence);
   const togglePadMixerMode = useStore((s) => s.togglePadMixerMode);
   const addSequence = useStore((s) => s.addSequence);
-  const duplicateSequence = useStore((s) => s.duplicateSequence);
+  const copySequence = useStore((s) => s.copySequence);
+  const pasteSequence = useStore((s) => s.pasteSequence);
   const clearSequence = useStore((s) => s.clearSequence);
   const setSequenceBars = useStore((s) => s.setSequenceBars);
   const setQuantize = useStore((s) => s.setQuantize);
@@ -257,10 +260,19 @@ export const SequenceView: React.FC = () => {
             <button
               type="button"
               className="pill-btn"
-              onClick={() => duplicateSequence(activeSeq.id)}
-              title={t('dupSeqTitle')}
+              onClick={() => copySequence(activeSeq.id)}
+              title={t('copySeqTitle')}
             >
               <Copy size={12} />
+            </button>
+            <button
+              type="button"
+              className={`pill-btn ${copiedSequence ? 'active-mode' : ''}`}
+              disabled={!copiedSequence}
+              onClick={() => pasteSequence(activeSeq.id)}
+              title={t('pasteSeqTitle')}
+            >
+              <ClipboardPaste size={12} />
             </button>
             <button
               type="button"

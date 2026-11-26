@@ -76,6 +76,7 @@ export interface AppState {
   mutedPads: number[];
   pianoRollOpen: boolean;
   exportModalOpen: boolean;
+  copiedSequence: { bars: number; notes: NoteEvent[]; sourceName: string } | null;
 
   // Phase 3: Inline Pad Mixer + Simple Perform FX
   padMixerMode: boolean;
@@ -133,7 +134,8 @@ export interface AppState {
   ) => void;
   selectSequence: (seqId: string) => void;
   addSequence: () => void;
-  duplicateSequence: (seqId: string) => void;
+  copySequence: (seqId: string) => void;
+  pasteSequence: (targetSeqId: string) => void;
   deleteSequence: (seqId: string) => void;
   clearSequence: (seqId: string) => void;
   setSequenceBars: (seqId: string, bars: number) => void;
@@ -206,6 +208,7 @@ export const useStore = create<AppState>((set, get) => {
     mutedPads: [],
     pianoRollOpen: false,
     exportModalOpen: false,
+    copiedSequence: null,
 
     padMixerMode: false,
     fxHold: false,
@@ -653,31 +656,40 @@ export const useStore = create<AppState>((set, get) => {
       set({ project, activeSequenceId: newSeq.id });
     },
 
-    duplicateSequence: (seqId) => {
+    copySequence: (seqId) => {
       const state = get();
       const src = state.project.sequences.find((s) => s.id === seqId);
       if (!src) return;
-      if (state.project.sequences.length >= 16) {
-        get().showToast(t('maxSeqReached'));
-        return;
-      }
+      set({
+        copiedSequence: {
+          bars: src.bars,
+          notes: src.notes.map((n) => ({ ...n })),
+          sourceName: src.name,
+        },
+      });
+      get().showToast(t('seqCopiedToast', { name: src.name }));
+    },
+
+    pasteSequence: (targetSeqId) => {
+      const state = get();
+      const clip = state.copiedSequence;
+      if (!clip) return;
+      const target = state.project.sequences.find((s) => s.id === targetSeqId);
+      if (!target) return;
+
       pushUndo(state.project);
-      const copy: SequencePattern = {
-        id: `seq-${Date.now().toString(36)}`,
-        name: `Seq ${state.project.sequences.length + 1}`,
-        bars: src.bars,
-        notes: src.notes.map((n, i) => ({
-          ...n,
-          id: `n-${Date.now().toString(36)}-${i}`,
-        })),
-      };
-      const project = {
-        ...state.project,
-        sequences: [...state.project.sequences, copy],
-      };
+      const stamp = Date.now().toString(36);
+      const pastedNotes = clip.notes.map((n, i) => ({
+        ...n,
+        id: `n-${stamp}-${i}-${Math.random().toString(36).slice(2, 5)}`,
+      }));
+      const sequences = state.project.sequences.map((s) =>
+        s.id === targetSeqId ? { ...s, bars: clip.bars, notes: pastedNotes } : s
+      );
+      const project = { ...state.project, sequences };
       scheduleSaveMeta(project);
-      set({ project, activeSequenceId: copy.id });
-      get().showToast(t('duplicatedInto', { name: copy.name }));
+      set({ project });
+      get().showToast(t('seqPastedToast', { name: target.name }));
     },
 
     deleteSequence: (seqId) => {
