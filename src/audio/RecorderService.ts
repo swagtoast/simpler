@@ -18,6 +18,10 @@ interface ActiveCapture {
 
 class RecorderServiceImpl {
   private micStream: MediaStream | null = null;
+  private micMonitorSource: MediaStreamAudioSourceNode | null = null;
+  private micMonitorAnalyser: AnalyserNode | null = null;
+  private micMonitorData = new Float32Array(256);
+
   private activeCapture: ActiveCapture | null = null;
   private inputPeak = 0;
 
@@ -33,8 +37,22 @@ class RecorderServiceImpl {
     return this.activeCapture?.targetPadId ?? null;
   }
 
+  get hasMicStream(): boolean {
+    return !!(this.micStream && this.micStream.active);
+  }
+
   get currentInputPeak(): number {
-    return this.inputPeak;
+    if (this.activeCapture) return this.inputPeak;
+    if (this.micMonitorAnalyser) {
+      this.micMonitorAnalyser.getFloatTimeDomainData(this.micMonitorData);
+      let peak = 0;
+      for (let i = 0; i < this.micMonitorData.length; i++) {
+        const a = Math.abs(this.micMonitorData[i]);
+        if (a > peak) peak = a;
+      }
+      return Math.min(1, peak * 1.4);
+    }
+    return 0;
   }
 
   get recordingElapsedSec(): number {
@@ -42,25 +60,67 @@ class RecorderServiceImpl {
     return (performance.now() - this.activeCapture.startedAt) / 1000;
   }
 
+  /**
+   * Requests microphone access directly inside a user tap gesture (critical for iPhone Safari/Chrome).
+   * Also connects a silent input meter analyser so students can see the mic working before pressing REC.
+   */
   async ensureMicStream(): Promise<MediaStream> {
+    // Ensure iOS 17+ audioSession allows microphone input!
+    try {
+      const nav = navigator as Navigator & { audioSession?: { type: string } };
+      if (nav.audioSession) {
+        nav.audioSession.type = 'play-and-record';
+      }
+    } catch {
+      // ignore
+    }
+
     if (this.micStream && this.micStream.active) {
       return this.micStream;
     }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error(
-        'Microfono bloccato: su smartphone serve aprire Koala Simpler tramite link HTTPS.'
+        'Microfono non accessibile in questo browser: apri il link HTTPS in Safari o Chrome.'
       );
     }
-    this.micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        channelCount: { ideal: 2 },
-      },
-      video: false,
-    });
-    return this.micStream;
+
+    let stream: MediaStream;
+    try {
+      // Musical sampling constraints (disable voice-call DSP that ruins instruments/beatboxing)
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+        video: false,
+      });
+    } catch {
+      // Fallback to simplest possible constraint for maximum iOS/Android compatibility
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    }
+
+    this.micStream = stream;
+
+    // Re-resume AudioContext after iOS permission prompt (iOS suspends AudioContext while alert is shown)
+    const ctx = await audioEngine.unlock();
+    if (ctx.state !== 'running') {
+      await ctx.resume();
+    }
+
+    // Attach lightweight live input meter analyser (not routed to speakers -> zero feedback)
+    try {
+      this.micMonitorSource?.disconnect();
+      this.micMonitorSource = ctx.createMediaStreamSource(stream);
+      this.micMonitorAnalyser = ctx.createAnalyser();
+      this.micMonitorAnalyser.fftSize = 256;
+      this.micMonitorSource.connect(this.micMonitorAnalyser);
+    } catch {
+      // ignore meter setup failure
+    }
+
+    return stream;
   }
 
   async startRecording(
@@ -72,22 +132,29 @@ class RecorderServiceImpl {
       await this.stopRecording(false);
     }
 
-    const ctx = await audioEngine.unlock();
-    const hasWorklet = await audioEngine.ensureRecorderWorklet();
-
-    let sourceNode: AudioNode;
     let micSourceNode: MediaStreamAudioSourceNode | null = null;
     let customSourceNode: AudioNode | null = null;
 
+    // For mic: request stream FIRST while still inside user gesture on iOS!
+    let micStream: MediaStream | null = null;
     if (source === 'mic') {
-      const stream = await this.ensureMicStream();
-      micSourceNode = ctx.createMediaStreamSource(stream);
+      micStream = await this.ensureMicStream();
+    }
+
+    const ctx = await audioEngine.unlock();
+    if (ctx.state !== 'running') {
+      await ctx.resume();
+    }
+    const hasWorklet = await audioEngine.ensureRecorderWorklet();
+
+    let sourceNode: AudioNode;
+    if (source === 'mic' && micStream) {
+      micSourceNode = ctx.createMediaStreamSource(micStream);
       sourceNode = micSourceNode;
     } else if (source === 'video' && customNode) {
       customSourceNode = customNode;
       sourceNode = customNode;
     } else {
-      // Internal lossless resample directly from PadBox master output
       sourceNode = audioEngine.outputNode;
     }
 
@@ -114,8 +181,6 @@ class RecorderServiceImpl {
       const node = new AudioWorkletNode(ctx, 'recorder-processor', {
         numberOfInputs: 1,
         numberOfOutputs: 1,
-        channelCount: 2,
-        channelCountMode: 'explicit',
       });
 
       node.port.onmessage = (event) => {
@@ -222,7 +287,7 @@ class RecorderServiceImpl {
     let endIdx = capture.totalSamples;
 
     if (autoTrimSilence) {
-      const threshold = capture.source === 'mic' ? 0.012 : 0.002;
+      const threshold = capture.source === 'mic' ? 0.01 : 0.002;
       while (
         startIdx < endIdx - 1 &&
         Math.abs(left[startIdx]) < threshold &&
@@ -230,7 +295,7 @@ class RecorderServiceImpl {
       ) {
         startIdx++;
       }
-      startIdx = Math.max(0, startIdx - Math.floor(ctx.sampleRate * 0.004));
+      startIdx = Math.max(0, startIdx - Math.floor(ctx.sampleRate * 0.005));
 
       while (
         endIdx > startIdx + 1 &&
@@ -239,7 +304,7 @@ class RecorderServiceImpl {
       ) {
         endIdx--;
       }
-      endIdx = Math.min(capture.totalSamples, endIdx + Math.floor(ctx.sampleRate * 0.015));
+      endIdx = Math.min(capture.totalSamples, endIdx + Math.floor(ctx.sampleRate * 0.02));
     }
 
     const finalLen = Math.max(1, endIdx - startIdx);
@@ -267,10 +332,6 @@ class RecorderServiceImpl {
     return /\.(mp4|mov|m4v|webm|mkv|3gp)$/i.test(file.name);
   }
 
-  /**
-   * Fast direct audio/video decoding (works natively for WAV/MP3/M4A/OGG and most MP4/MOV screen recordings).
-   * Returns null if a video container requires fallback live capture via <video>.
-   */
   async tryDecodeFileDirectly(file: File): Promise<AudioBuffer | null> {
     const ctx = await audioEngine.unlock();
     const arrayBuffer = await file.arrayBuffer();

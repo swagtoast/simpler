@@ -97,11 +97,12 @@ class AudioEngineImpl {
   async unlock(): Promise<AudioContext> {
     const ctx = this.context;
 
-    // iOS 17+ AudioSession API: keeps playback audible even if silent switch is toggled in some modes
+    // iOS 17+ AudioSession API: MUST use 'play-and-record' (not 'playback'!)
+    // so both loud speaker playback AND the iPhone microphone work together!
     try {
       const nav = navigator as Navigator & { audioSession?: { type: string } };
-      if (nav.audioSession && nav.audioSession.type !== 'playback') {
-        nav.audioSession.type = 'playback';
+      if (nav.audioSession && nav.audioSession.type !== 'play-and-record') {
+        nav.audioSession.type = 'play-and-record';
       }
     } catch {
       // Ignore if unsupported

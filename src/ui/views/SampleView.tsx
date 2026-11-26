@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Mic,
   Radio,
   Film,
   SlidersHorizontal,
@@ -8,6 +9,7 @@ import {
   Scissors,
   ArrowLeftRight,
   Square,
+  Circle,
 } from 'lucide-react';
 import { BANK_LABELS, BankId } from '../../state/types';
 import { useStore } from '../../state/useStore';
@@ -34,6 +36,7 @@ export const SampleView: React.FC = () => {
   const setActiveBank = useStore((s) => s.setActiveBank);
   const setToolMode = useStore((s) => s.setToolMode);
   const togglePadMixerMode = useStore((s) => s.togglePadMixerMode);
+  const setPadMixerMode = useStore((s) => s.setPadMixerMode);
   const setEditorOpen = useStore((s) => s.setEditorOpen);
   const setKeyboardOpen = useStore((s) => s.setKeyboardOpen);
   const setRecordingState = useStore((s) => s.setRecordingState);
@@ -41,10 +44,61 @@ export const SampleView: React.FC = () => {
   const showToast = useStore((s) => s.showToast);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const micLedRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
 
   const selectedPad = pads[selectedPadId];
+
+  // Live 60fps Mic input LED bar whenever MIC mode is open
+  useEffect(() => {
+    if (toolMode !== 'rec' && recordingSource !== 'mic') return;
+    let raf = 0;
+    let smoothed = 0;
+    const tick = () => {
+      const peak = recorderService.currentInputPeak;
+      smoothed = peak > smoothed ? peak : smoothed * 0.82;
+      const lit = Math.round(Math.min(1, smoothed * 1.4) * 10);
+      for (let i = 0; i < 10; i++) {
+        const el = micLedRefs.current[i];
+        if (el) el.classList.toggle('lit', i < lit);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [toolMode, recordingSource]);
+
+  const handleToggleMicMode = async () => {
+    if (toolMode === 'rec') {
+      if (recorderService.isRecording && recorderService.recordingSource === 'mic') {
+        await handleStopMicHold(selectedPadId);
+      }
+      setToolMode('play');
+      return;
+    }
+
+    // Request iPhone microphone synchronously inside the tap gesture!
+    try {
+      await recorderService.ensureMicStream();
+      setPadMixerMode(false);
+      setToolMode('rec');
+    } catch (err) {
+      showToast(
+        err instanceof Error
+          ? err.message
+          : 'Permesso microfono negato. Su iPhone apri il link HTTPS in Safari.'
+      );
+    }
+  };
+
+  const handleTapRecordButton = async () => {
+    if (isRecording && recordingSource === 'mic') {
+      await handleStopMicHold(recordingPadId ?? selectedPadId);
+      return;
+    }
+    await handleStartMicHold(selectedPadId);
+  };
 
   const handleStartMicHold = async (padId: number) => {
     try {
@@ -178,6 +232,16 @@ export const SampleView: React.FC = () => {
         <div className="action-strip">
           <button
             type="button"
+            className={`pill-btn ${toolMode === 'rec' || recordingSource === 'mic' ? 'active-rec' : ''}`}
+            onClick={() => void handleToggleMicMode()}
+            title="Registra un sample col microfono del telefono o PC"
+          >
+            <Mic size={13} />
+            <span>MIC</span>
+          </button>
+
+          <button
+            type="button"
             className={`pill-btn ${padMixerMode ? 'active-primary' : ''}`}
             onClick={togglePadMixerMode}
             title="Mostra fader volume e VU meter sui pad"
@@ -226,6 +290,52 @@ export const SampleView: React.FC = () => {
       </div>
 
       {/* Contextual Banners only when a special mode is active */}
+      {toolMode === 'rec' && (
+        <div className="mode-hint rec" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 160 }}>
+            <div className="led-bar-h" style={{ maxWidth: 96, height: 10, background: '#171a1e', padding: 2, borderRadius: 3 }}>
+              {Array.from({ length: 10 }, (_, i) => {
+                const zone = i >= 8 ? 'red' : i >= 6 ? 'yellow' : 'green';
+                return (
+                  <span
+                    key={i}
+                    ref={(el) => {
+                      micLedRefs.current[i] = el;
+                    }}
+                    className={`led-seg ${zone}`}
+                  />
+                );
+              })}
+            </div>
+            <span style={{ fontSize: 11.5 }}>
+              {isRecording && recordingSource === 'mic'
+                ? `Registrando su ${selectedCode}...`
+                : `Tieni premuto un pad oppure usa REC (${selectedCode})`}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              type="button"
+              className="primary-cta"
+              style={{ height: 28, padding: '0 10px', fontSize: 11.5 }}
+              onClick={() => void handleTapRecordButton()}
+            >
+              {isRecording && recordingSource === 'mic' ? <Square size={12} /> : <Circle size={12} />}
+              <span>{isRecording && recordingSource === 'mic' ? 'STOP' : `REC ${selectedCode}`}</span>
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              style={{ height: 28, padding: '0 8px', fontSize: 11 }}
+              onClick={() => void handleToggleMicMode()}
+            >
+              Fine
+            </button>
+          </div>
+        </div>
+      )}
+
       {isRecording && recordingSource === 'resample' && recordingPadId !== null && (
         <div className="mode-hint resample">
           <span>

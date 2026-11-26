@@ -230,18 +230,39 @@ export const PadGrid: React.FC<PadGridProps> = ({
     selectPad(pad.id);
     cellRefs.current[localIdx]?.classList.add('pressed');
 
-    // Hold any empty pad to record directly from mic (Sample tab)
-    if (!playOnly && !pad.hasSample && !recorderService.isRecording && onStartMicHold) {
-      const entry = {
+    // Explicit MIC mode: immediately start hold-to-record synchronously on ANY pad (works on iPhone!)
+    if (!playOnly && toolMode === 'rec' && !recorderService.isRecording && onStartMicHold) {
+      activePointers.current.set(e.pointerId, {
         padId: pad.id,
         micHold: true,
-        micStarted: false,
-        holdTimer: window.setTimeout(() => {
-          entry.micStarted = true;
-          onStartMicHold(pad.id);
-        }, 120),
-      };
-      activePointers.current.set(e.pointerId, entry);
+        micStarted: true,
+        holdTimer: null,
+      });
+      onStartMicHold(pad.id);
+      return;
+    }
+
+    // Normal PLAY mode on an EMPTY pad: start mic hold immediately (no setTimeout -> preserves iOS user gesture!)
+    if (!playOnly && !pad.hasSample && !recorderService.isRecording && onStartMicHold) {
+      if (!recorderService.hasMicStream) {
+        // First time on iPhone: request mic permission synchronously inside this tap gesture
+        void recorderService
+          .ensureMicStream()
+          .then(() => {
+            showToast('Microfono pronto! Ora tieni premuto il pad per registrare');
+          })
+          .catch((err) => {
+            showToast(err instanceof Error ? err.message : 'Permesso microfono negato');
+          });
+        return;
+      }
+      activePointers.current.set(e.pointerId, {
+        padId: pad.id,
+        micHold: true,
+        micStarted: true,
+        holdTimer: null,
+      });
+      onStartMicHold(pad.id);
       return;
     }
 
