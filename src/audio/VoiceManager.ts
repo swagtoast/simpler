@@ -70,19 +70,28 @@ class VoiceManagerImpl {
 
     // When reversed, map [normStart, normEnd] from forward coordinates into reversed buffer coordinates
     const bufDuration = buffer.duration;
-    const regionStartSec = pad.reverse ? (1 - normEnd) * bufDuration : normStart * bufDuration;
-    const regionEndSec = pad.reverse ? (1 - normStart) * bufDuration : normEnd * bufDuration;
+    const regionStartSec = Math.max(
+      0,
+      Math.min(bufDuration - 0.005, pad.reverse ? (1 - normEnd) * bufDuration : normStart * bufDuration)
+    );
+    const regionEndSec = Math.max(
+      regionStartSec + 0.005,
+      Math.min(bufDuration, pad.reverse ? (1 - normStart) * bufDuration : normEnd * bufDuration)
+    );
     const regionLengthSec = Math.max(0.005, regionEndSec - regionStartSec);
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.setValueAtTime(playbackRate, now);
 
-    const isLoop = pad.loop && !options.startOverride;
-    source.loop = isLoop;
+    const isLoop = pad.loop && options.startOverride === undefined;
     if (isLoop) {
+      source.loop = true;
       source.loopStart = regionStartSec;
-      source.loopEnd = regionEndSec;
+      // Keep loopEnd strictly within buffer duration for WebKit/Safari compatibility
+      source.loopEnd = Math.min(bufDuration, regionEndSec);
+    } else {
+      source.loop = false;
     }
 
     // Tone (Tilt EQ: negative = warm/lowpass tilt, positive = bright/highpass tilt)
@@ -129,7 +138,7 @@ class VoiceManagerImpl {
 
     lastNode.connect(audioEngine.inputNode);
 
-    const isOneShot = options.forceGate ? false : pad.oneShot && !isLoop;
+    const isOneShot = options.forceGate ? false : pad.oneShot;
     const playDurationWallSec = regionLengthSec / playbackRate;
 
     if (isLoop) {
@@ -265,6 +274,102 @@ class VoiceManagerImpl {
       this.stopVoice(id, now, 0.015);
     }
     this.taggedVoices.clear();
+  }
+
+  isPadPlaying(padId: number): boolean {
+    for (const v of this.voices.values()) {
+      if (v.padId === padId && !v.stopped && !v.released) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Synchronizes live playing voices whenever start/end trim cursors, loop, pitch, or reverse change
+   * in the Sample Editor — guarantees the loop immediately respects the red End / green Start handles!
+   */
+  syncPadParams(pad: PadConfig): void {
+    const now = audioEngine.context.currentTime;
+    let needsRetrigger = false;
+
+    for (const v of Array.from(this.voices.values())) {
+      if (v.padId !== pad.id || v.stopped || v.released) continue;
+
+      const bufDur = v.bufferDuration;
+      const normStart = Math.max(0, Math.min(0.995, pad.start));
+      const normEnd = Math.max(normStart + 0.005, Math.min(1, pad.end));
+      const newStartSec = Math.max(
+        0,
+        Math.min(bufDur - 0.005, pad.reverse ? (1 - normEnd) * bufDur : normStart * bufDur)
+      );
+      const newEndSec = Math.max(
+        newStartSec + 0.005,
+        Math.min(bufDur, pad.reverse ? (1 - normStart) * bufDur : normEnd * bufDur)
+      );
+
+      // Update pitch in real time
+      const newRate = Math.pow(2, pad.pitch / 12);
+      if (Math.abs(newRate - v.playbackRate) > 0.0001) {
+        try {
+          v.source.playbackRate.setTargetAtTime(newRate, now, 0.01);
+        } catch {
+          // ignore
+        }
+        v.playbackRate = newRate;
+      }
+
+      // If reverse toggled while playing, cleanly retrigger with reversed buffer
+      if (v.reverse !== pad.reverse) {
+        needsRetrigger = true;
+        continue;
+      }
+
+      // Estimate current playback position inside buffer
+      const elapsedSampleSec = Math.max(0, (now - v.startTime) * v.playbackRate);
+      const oldRegionLen = Math.max(0.001, v.regionEndSec - v.regionStartSec);
+      const currentPosSec =
+        v.regionStartSec + (v.loop ? elapsedSampleSec % oldRegionLen : elapsedSampleSec);
+
+      if (pad.loop) {
+        const wasLooping = v.loop;
+        v.loop = true;
+        v.regionStartSec = newStartSec;
+        v.regionEndSec = newEndSec;
+        v.oneShot = pad.oneShot;
+
+        // If loop was just enabled on a non-looping voice, or the red End handle was dragged
+        // left of the current playhead (or green Start past it), re-anchor cleanly!
+        if (!wasLooping || currentPosSec >= newEndSec - 0.008 || currentPosSec < newStartSec) {
+          needsRetrigger = true;
+        } else {
+          try {
+            v.source.loop = true;
+            v.source.loopStart = newStartSec;
+            v.source.loopEnd = Math.min(bufDur, newEndSec);
+            // Re-anchor startTime so visual playhead stays locked to the new region bounds
+            v.startTime = now - (currentPosSec - newStartSec) / Math.max(0.01, v.playbackRate);
+          } catch {
+            needsRetrigger = true;
+          }
+        }
+      } else {
+        // Loop turned off or normal one-shot trimmed past current position
+        v.loop = false;
+        v.regionStartSec = newStartSec;
+        v.regionEndSec = newEndSec;
+        try {
+          v.source.loop = false;
+        } catch {
+          // ignore
+        }
+        if (currentPosSec >= newEndSec) {
+          this.stopVoice(v.id, now, 0.01);
+        }
+      }
+    }
+
+    if (needsRetrigger && pad.hasSample) {
+      this.triggerPad(pad);
+    }
   }
 
   /**

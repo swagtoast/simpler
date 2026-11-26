@@ -273,8 +273,13 @@ export const PadGrid: React.FC<PadGridProps> = ({
       holdTimer: null,
     });
     if (pad.hasSample) {
-      voiceManager.triggerPad(pad);
-      sequencerEngine.recordLiveHit(pad.id);
+      // Latching One-Shot Loop: tap once to start looping, tap again to stop cleanly!
+      if (pad.oneShot && pad.loop && !sequencerEngine.recording && voiceManager.isPadPlaying(pad.id)) {
+        voiceManager.stopByPad(pad.id);
+      } else {
+        voiceManager.triggerPad(pad);
+        sequencerEngine.recordLiveHit(pad.id);
+      }
     }
   };
 

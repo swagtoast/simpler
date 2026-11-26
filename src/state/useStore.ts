@@ -340,10 +340,27 @@ export const useStore = create<AppState>((set, get) => {
       if (typeof patch.volume === 'number') {
         voiceManager.setPadLiveVolume(padId, patch.volume);
       }
-      const pads = state.project.pads.map((p) => (p.id === padId ? { ...p, ...patch } : p));
+      let updatedPad: PadConfig | null = null;
+      const pads = state.project.pads.map((p) => {
+        if (p.id !== padId) return p;
+        updatedPad = { ...p, ...patch };
+        return updatedPad;
+      });
       const project = { ...state.project, pads };
       scheduleSaveMeta(project);
       set({ project });
+
+      if (
+        updatedPad &&
+        (patch.start !== undefined ||
+          patch.end !== undefined ||
+          patch.loop !== undefined ||
+          patch.oneShot !== undefined ||
+          patch.pitch !== undefined ||
+          patch.reverse !== undefined)
+      ) {
+        voiceManager.syncPadParams(updatedPad);
+      }
     },
 
     clearPad: (padId) => {

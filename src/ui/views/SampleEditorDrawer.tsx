@@ -118,10 +118,14 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
             className="icon-btn accent"
             onPointerDown={() => {
               void audioEngine.unlock();
-              voiceManager.triggerPad(pad);
+              if (pad.oneShot && pad.loop && voiceManager.isPadPlaying(pad.id)) {
+                voiceManager.stopByPad(pad.id);
+              } else {
+                voiceManager.triggerPad(pad);
+              }
             }}
             onPointerUp={() => voiceManager.releasePad(pad.id)}
-            title="Ascolta sample"
+            title="Ascolta / Ferma sample"
           >
             <Play size={14} />
           </button>
