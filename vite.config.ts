@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg', 'worklets/recorder-processor.js', 'worklets/fx-processor.js'],
       manifest: {
-        name: 'Simpler — Un campionatore facile.',
-        short_name: 'Simpler',
+        name: 'Koala Simpler — Un campionatore facile.',
+        short_name: 'Koala Simpler',
         description: 'Un campionatore facile.',
         theme_color: '#e6e3db',
         background_color: '#eceae3',

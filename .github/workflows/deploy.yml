@@ -1,4 +1,4 @@
-name: Deploy Simpler to GitHub Pages
+name: Deploy Koala Simpler to GitHub Pages
 
 on:
   push:

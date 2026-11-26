@@ -58,7 +58,7 @@ export const WorkshopQRModal: React.FC = () => {
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <h2 className="modal-title">Simpler — QR Workshop</h2>
+            <h2 className="modal-title">Koala Simpler — QR Workshop</h2>
             <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Un campionatore facile.</div>
           </div>
           <button type="button" className="icon-btn" onClick={() => setOpen(false)}>

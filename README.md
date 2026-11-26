@@ -1,4 +1,4 @@
-# Simpler — Un campionatore facile.
+# Koala Simpler — Un campionatore facile.
 
 Webapp progressiva (PWA) gratuita e offline-first per creare beat Boom Bap e Hip-Hop da smartphone e PC, pensata anche per workshop in classe (0 € / HTTPS / 0 latenza di rete).
 

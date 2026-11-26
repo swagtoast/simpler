@@ -48,7 +48,7 @@ class RecorderServiceImpl {
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error(
-        'Microfono bloccato: su smartphone serve aprire Simpler tramite link HTTPS.'
+        'Microfono bloccato: su smartphone serve aprire Koala Simpler tramite link HTTPS.'
       );
     }
     this.micStream = await navigator.mediaDevices.getUserMedia({
