@@ -33,8 +33,8 @@ export const ExportModal: React.FC = () => {
     try {
       const slug =
         scope === 'song'
-          ? `koala-simpler-beat-${Math.round(project.bpm)}bpm.wav`
-          : `koala-simpler-${activeSeq.name.toLowerCase().replace(/\s+/g, '-')}-${Math.round(project.bpm)}bpm.wav`;
+          ? `simpler-beat-${Math.round(project.bpm)}bpm.wav`
+          : `simpler-${activeSeq.name.toLowerCase().replace(/\s+/g, '-')}-${Math.round(project.bpm)}bpm.wav`;
       await exportMixWav(project, targetSequences, loops, mutedPads, slug);
       showToast(`Esportato ${slug}`);
       setExportModalOpen(false);
@@ -52,7 +52,7 @@ export const ExportModal: React.FC = () => {
     }
     setBusy(true);
     try {
-      const slug = `koala-simpler-stems-${Math.round(project.bpm)}bpm.zip`;
+      const slug = `simpler-stems-${Math.round(project.bpm)}bpm.zip`;
       const count = await exportStemsZip(project, targetSequences, loops, slug);
       showToast(`Esportati ${count} stems in ${slug}`);
       setExportModalOpen(false);

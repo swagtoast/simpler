@@ -1,9 +1,9 @@
 {
-  "name": "koala-simpler",
+  "name": "simpler",
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Koala Simpler — Un campionatore facile.",
+  "description": "Simpler — Un campionatore facile.",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc -b && vite build",

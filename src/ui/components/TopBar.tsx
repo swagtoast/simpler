@@ -172,8 +172,8 @@ export const TopBar: React.FC = () => {
     <>
       <header className="top-bar">
         <div className="brand-cluster">
-          <div className="brand-logo" title="Koala Simpler — Un campionatore facile.">
-            <span className="brand-badge-akai">KOALA SIMPLER</span>
+          <div className="brand-logo" title="Simpler — Un campionatore facile.">
+            <span className="brand-badge-akai">SIMPLER</span>
           </div>
 
           <button
@@ -328,7 +328,7 @@ export const TopBar: React.FC = () => {
           <div className="modal-card" style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-head">
               <div>
-                <h2 className="modal-title">KOALA SIMPLER</h2>
+                <h2 className="modal-title">SIMPLER</h2>
                 <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
                   Un campionatore facile.
                 </div>
