@@ -13,6 +13,7 @@ import { useStore } from '../../state/useStore';
 import { audioEngine } from '../../audio/AudioEngine';
 import { voiceManager } from '../../audio/VoiceManager';
 import { sequencerEngine } from '../../audio/SequencerEngine';
+import { t } from '../../i18n/t';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -204,7 +205,7 @@ export const KeyboardOverlay: React.FC = () => {
             className={`pill-btn ${metronomeOn ? 'active-primary' : ''}`}
             style={{ height: 32, padding: '0 8px' }}
             onClick={() => sequencerEngine.toggleMetronome()}
-            title="Metronomo 4/4"
+            title={t('metroTitle')}
           >
             <Volume2 size={13} />
           </button>
@@ -213,12 +214,12 @@ export const KeyboardOverlay: React.FC = () => {
             <button
               type="button"
               className="pill-btn"
-              style={{ height: 32, padding: '0 8px', borderColor: 'rgba(239,68,68,0.45)', color: '#fca5a5' }}
+              style={{ height: 32, padding: '0 8px', borderColor: 'rgba(204,34,34,0.5)', color: 'var(--accent-primary)' }}
               onClick={() => {
                 clearPadFromSequence(activeSeq.id, pad.id);
-                showToast(`Cancellate ${padNoteCount} note di ${pad.name}`);
+                showToast(t('kbClearedToast', { count: padNoteCount, pad: pad.name }));
               }}
-              title={`Elimina le note di ${pad.name} da ${activeSeq.name}`}
+              title={t('kbClearNotes', { pad: pad.name, seq: activeSeq.name })}
             >
               <Eraser size={13} />
               <span>×{padNoteCount}</span>
@@ -254,7 +255,7 @@ export const KeyboardOverlay: React.FC = () => {
           className="icon-btn"
           style={{ height: 32, minWidth: 32 }}
           onClick={() => setKeyboardOpen(false)}
-          aria-label="Chiudi tastiera"
+          aria-label={t('kbClose')}
         >
           <X size={16} />
         </button>
@@ -283,7 +284,7 @@ export const KeyboardOverlay: React.FC = () => {
               whiteSpace: 'nowrap',
             }}
           >
-            {pad?.hasSample ? pad.name : 'Pad vuoto'}
+            {pad?.hasSample ? pad.name : t('kbEmptyPad')}
           </span>
         </div>
 
@@ -337,7 +338,7 @@ export const KeyboardOverlay: React.FC = () => {
 
       {!pad?.hasSample ? (
         <div className="phase-placeholder">
-          <p>Seleziona un pad con un sample caricato (es. Upright Bass, Jazz Chop o Dusty Vibes) per suonarlo sulla tastiera.</p>
+          <p>{t('kbEmptyMsg')}</p>
         </div>
       ) : (
         <div className="piano-grid">

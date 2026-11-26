@@ -2,6 +2,7 @@ import React from 'react';
 import { Volume2 } from 'lucide-react';
 import { useStore } from '../../state/useStore';
 import { audioEngine } from '../../audio/AudioEngine';
+import { t } from '../../i18n/t';
 
 export const LowLatencyBanner: React.FC = () => {
   const show = useStore((s) => s.showLatencyBanner);
@@ -12,9 +13,9 @@ export const LowLatencyBanner: React.FC = () => {
   return (
     <div className="latency-banner" role="status">
       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <Volume2 size={15} style={{ flexShrink: 0, color: '#38bdf8' }} />
+        <Volume2 size={15} style={{ flexShrink: 0, color: '#9ef0c0' }} />
         <span>
-          <strong>Bassa latenza:</strong> togli il silenzioso (iPhone) e usa speaker o cuffie cablate (no Bluetooth).
+          <strong>{t('latencyTitle')}</strong> {t('latencyBody')}
         </span>
       </div>
       <button

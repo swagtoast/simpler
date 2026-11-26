@@ -1,4 +1,5 @@
 import { audioEngine } from './AudioEngine';
+import { t } from '../i18n/t';
 
 export type RecordingSource = 'mic' | 'resample' | 'video';
 
@@ -80,9 +81,7 @@ class RecorderServiceImpl {
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error(
-        'Microfono non accessibile in questo browser: apri il link HTTPS in Safari o Chrome.'
-      );
+      throw new Error(t('micHttpsError'));
     }
 
     let stream: MediaStream;

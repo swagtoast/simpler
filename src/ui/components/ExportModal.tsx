@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, Layers, X } from 'lucide-react';
 import { useStore } from '../../state/useStore';
 import { exportMixWav, exportStemsZip } from '../../audio/OfflineRenderer';
+import { t } from '../../i18n/t';
 
 export const ExportModal: React.FC = () => {
   const project = useStore((s) => s.project);
@@ -26,7 +27,7 @@ export const ExportModal: React.FC = () => {
 
   const handleExportWav = async () => {
     if (totalNotes === 0) {
-      showToast('Registra o inserisci prima qualche nota nel beat!');
+      showToast(t('exportNeedNotes'));
       return;
     }
     setBusy(true);
@@ -36,10 +37,10 @@ export const ExportModal: React.FC = () => {
           ? `simpler-beat-${Math.round(project.bpm)}bpm.wav`
           : `simpler-${activeSeq.name.toLowerCase().replace(/\s+/g, '-')}-${Math.round(project.bpm)}bpm.wav`;
       await exportMixWav(project, targetSequences, loops, mutedPads, slug);
-      showToast(`Esportato ${slug}`);
+      showToast(t('exportedToast', { file: slug }));
       setExportModalOpen(false);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Errore export WAV');
+      showToast(err instanceof Error ? err.message : t('exportWavError'));
     } finally {
       setBusy(false);
     }
@@ -47,17 +48,17 @@ export const ExportModal: React.FC = () => {
 
   const handleExportStems = async () => {
     if (totalNotes === 0) {
-      showToast('Registra o inserisci prima qualche nota nel beat!');
+      showToast(t('exportNeedNotes'));
       return;
     }
     setBusy(true);
     try {
       const slug = `simpler-stems-${Math.round(project.bpm)}bpm.zip`;
       const count = await exportStemsZip(project, targetSequences, loops, slug);
-      showToast(`Esportati ${count} stems in ${slug}`);
+      showToast(t('exportedStemsToast', { count, file: slug }));
       setExportModalOpen(false);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Errore export Stems');
+      showToast(err instanceof Error ? err.message : t('exportStemsError'));
     } finally {
       setBusy(false);
     }
@@ -67,7 +68,7 @@ export const ExportModal: React.FC = () => {
     <div className="modal-backdrop" onClick={() => !busy && setExportModalOpen(false)}>
       <div className="modal-card" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2 className="modal-title">Esporta il tuo Beat</h2>
+          <h2 className="modal-title">{t('exportTitle')}</h2>
           <button
             type="button"
             className="icon-btn"
@@ -81,7 +82,7 @@ export const ExportModal: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
-              COSA ESPORTARE
+              {t('exportScopeLabel')}
             </div>
             <div className="toggle-row">
               <button
@@ -89,7 +90,7 @@ export const ExportModal: React.FC = () => {
                 className={`toggle-chip ${scope === 'current' ? 'on' : ''}`}
                 onClick={() => setScope('current')}
               >
-                Solo {activeSeq?.name} ({activeSeq?.notes.length ?? 0} note)
+                {t('exportOnlySeq', { name: activeSeq?.name ?? 'Seq 1', count: activeSeq?.notes.length ?? 0 })}
               </button>
               <button
                 type="button"
@@ -97,14 +98,14 @@ export const ExportModal: React.FC = () => {
                 disabled={nonEmptySeqs.length === 0}
                 onClick={() => setScope('song')}
               >
-                Brano intero ({nonEmptySeqs.length} seq)
+                {t('exportFullSong', { count: nonEmptySeqs.length })}
               </button>
             </div>
           </div>
 
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
-              RIPETIZIONI (LOOP)
+              {t('exportLoopsLabel')}
             </div>
             <div className="toggle-row">
               {[1, 2, 4].map((n) => (
@@ -125,14 +126,15 @@ export const ExportModal: React.FC = () => {
               fontSize: 12,
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-secondary)',
-              background: 'var(--bg-elevated)',
+              background: 'var(--bg-panel)',
+              border: '1px solid var(--border-subtle)',
               padding: '8px 10px',
-              borderRadius: 8,
+              borderRadius: 6,
             }}
           >
             {totalNotes > 0
-              ? `Durata stimata: ~${estSeconds.toFixed(1)}s · 44.1kHz 16-bit Stereo WAV`
-              : 'Nessuna nota presente nella selezione.'}
+              ? t('exportEstDur', { sec: estSeconds.toFixed(1) })
+              : t('exportNoNotes')}
           </div>
 
           <button
@@ -142,7 +144,7 @@ export const ExportModal: React.FC = () => {
             onClick={() => void handleExportWav()}
           >
             <Download size={16} />
-            <span>{busy ? 'Rendering in corso...' : 'Scarica Beat (.WAV)'}</span>
+            <span>{busy ? t('exportRendering') : t('exportDownloadWav')}</span>
           </button>
 
           <button
@@ -153,7 +155,7 @@ export const ExportModal: React.FC = () => {
             onClick={() => void handleExportStems()}
           >
             <Layers size={15} />
-            <span>Scarica Tracce Separate (Stems .ZIP)</span>
+            <span>{t('exportDownloadStems')}</span>
           </button>
         </div>
       </div>

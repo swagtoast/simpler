@@ -19,6 +19,7 @@ import { PadGrid } from '../components/PadGrid';
 import { SampleEditorDrawer } from './SampleEditorDrawer';
 import { KeyboardOverlay } from '../components/KeyboardOverlay';
 import { VideoImportModal } from '../components/VideoImportModal';
+import { t } from '../../i18n/t';
 
 export const SampleView: React.FC = () => {
   const activeBank = useStore((s) => s.activeBank);
@@ -84,11 +85,7 @@ export const SampleView: React.FC = () => {
       setPadMixerMode(false);
       setToolMode('rec');
     } catch (err) {
-      showToast(
-        err instanceof Error
-          ? err.message
-          : 'Permesso microfono negato. Su iPhone apri il link HTTPS in Safari.'
-      );
+      showToast(err instanceof Error ? err.message : t('micDeniedToast'));
     }
   };
 
@@ -106,7 +103,7 @@ export const SampleView: React.FC = () => {
       await recorderService.startRecording('mic', padId);
     } catch (err) {
       setRecordingState(false, null, null);
-      showToast(err instanceof Error ? err.message : 'Errore microfono');
+      showToast(err instanceof Error ? err.message : t('micError'));
     }
   };
 
@@ -120,9 +117,9 @@ export const SampleView: React.FC = () => {
     if (result?.buffer) {
       const code = `${BANK_LABELS[Math.floor(padId / 16)]}${(padId % 16) + 1}`;
       assignSampleToPad(padId, result.buffer, `Mic ${code}`);
-      showToast(`Registrato su ${code} (${result.buffer.duration.toFixed(2)}s)`);
+      showToast(t('recordedToast', { code, sec: result.buffer.duration.toFixed(2) }));
     } else {
-      showToast('Registrazione troppo breve');
+      showToast(t('recTooShort'));
     }
   };
 
@@ -132,10 +129,10 @@ export const SampleView: React.FC = () => {
       setRecordingState(true, padId, 'resample');
       setToolMode('play');
       const code = `${BANK_LABELS[Math.floor(padId / 16)]}${(padId % 16) + 1}`;
-      showToast(`Resampling su ${code}: suona i pad e premi STOP!`);
+      showToast(t('resampleStarted', { code }));
     } catch (err) {
       setRecordingState(false, null, null);
-      showToast(err instanceof Error ? err.message : 'Errore resampling');
+      showToast(err instanceof Error ? err.message : t('resampleError'));
     }
   };
 
@@ -145,9 +142,9 @@ export const SampleView: React.FC = () => {
     if (result?.buffer) {
       const code = `${BANK_LABELS[Math.floor(result.padId / 16)]}${(result.padId % 16) + 1}`;
       assignSampleToPad(result.padId, result.buffer, `Resample ${code}`);
-      showToast(`Resample salvato su ${code} (${result.buffer.duration.toFixed(2)}s)`);
+      showToast(t('resampleSaved', { code, sec: result.buffer.duration.toFixed(2) }));
     } else {
-      showToast('Nessun audio catturato nel resample');
+      showToast(t('resampleEmpty'));
     }
   };
 
@@ -162,7 +159,6 @@ export const SampleView: React.FC = () => {
 
     const isVideo = recorderService.isVideoFile(file);
 
-    // For very large screen-recording videos (> 30MB), open the interactive video trimmer/sampler directly
     if (isVideo && file.size > 30 * 1024 * 1024) {
       setPendingVideoFile(file);
       return;
@@ -175,16 +171,14 @@ export const SampleView: React.FC = () => {
       if (buffer) {
         const cleanName = file.name.replace(/\.[^/.]+$/, '').slice(0, 18) || 'Sample';
         assignSampleToPad(selectedPadId, buffer, cleanName);
-        showToast(`Caricato "${cleanName}" (${buffer.duration.toFixed(1)}s) — ritaglia la waveform!`);
-        // Open Waveform Editor immediately for imported videos / long samples (> 3s) just like Koala workflow
+        showToast(t('loadedTrimToast', { name: cleanName, sec: buffer.duration.toFixed(1) }));
         if (isVideo || buffer.duration > 3) {
           setEditorOpen(true, 'edit');
         }
       } else if (isVideo) {
-        // Native container decode unsupported on this device -> seamless interactive <video> capture modal
         setPendingVideoFile(file);
       } else {
-        showToast(`Formato audio non supportato: ${file.name}`);
+        showToast(t('unsupportedAudio', { name: file.name }));
       }
     } finally {
       setImporting(false);
@@ -234,7 +228,7 @@ export const SampleView: React.FC = () => {
             type="button"
             className={`pill-btn ${toolMode === 'rec' || recordingSource === 'mic' ? 'active-rec' : ''}`}
             onClick={() => void handleToggleMicMode()}
-            title="Registra un sample col microfono del telefono o PC"
+            title={t('micBtnTitle')}
           >
             <Mic size={13} />
             <span>MIC</span>
@@ -244,7 +238,7 @@ export const SampleView: React.FC = () => {
             type="button"
             className={`pill-btn ${padMixerMode ? 'active-primary' : ''}`}
             onClick={togglePadMixerMode}
-            title="Mostra fader volume e VU meter sui pad"
+            title={t('volBtnTitle')}
           >
             <SlidersVertical size={13} />
             <span>VOL</span>
@@ -255,10 +249,10 @@ export const SampleView: React.FC = () => {
             className="pill-btn"
             disabled={importing}
             onClick={triggerFilePicker}
-            title="Importa video registrazione schermo (YouTube) o file audio sul pad selezionato"
+            title={t('importBtnTitle')}
           >
             <Film size={13} />
-            <span>{importing ? 'CARICO...' : 'IMPORT'}</span>
+            <span>{importing ? t('importing') : 'IMPORT'}</span>
           </button>
 
           <button
@@ -271,7 +265,7 @@ export const SampleView: React.FC = () => {
                 setToolMode(toolMode === 'resample' ? 'play' : 'resample');
               }
             }}
-            title="Registra internamente i pad che suoni su un nuovo pad"
+            title={t('resampleBtnTitle')}
           >
             <Radio size={13} />
             <span>{recordingSource === 'resample' ? 'STOP' : 'RESAMPLE'}</span>
@@ -281,7 +275,7 @@ export const SampleView: React.FC = () => {
             type="button"
             className={`pill-btn ${toolMode === 'copy' || toolMode === 'swap' ? 'active-mode' : ''}`}
             onClick={cycleMoveMode}
-            title="Copia o scambia pad"
+            title={t('moveBtnTitle')}
           >
             <ArrowLeftRight size={13} />
             <span>{toolMode === 'copy' ? 'COPY' : toolMode === 'swap' ? 'SWAP' : 'MOVE'}</span>
@@ -309,8 +303,8 @@ export const SampleView: React.FC = () => {
             </div>
             <span style={{ fontSize: 11.5 }}>
               {isRecording && recordingSource === 'mic'
-                ? `Registrando su ${selectedCode}...`
-                : `Tieni premuto un pad oppure usa REC (${selectedCode})`}
+                ? t('recordingOnPad', { code: selectedCode })
+                : t('micReadyHint', { code: selectedCode })}
             </span>
           </div>
 
@@ -330,7 +324,7 @@ export const SampleView: React.FC = () => {
               style={{ height: 28, padding: '0 8px', fontSize: 11 }}
               onClick={() => void handleToggleMicMode()}
             >
-              Fine
+              {t('done')}
             </button>
           </div>
         </div>
@@ -339,12 +333,10 @@ export const SampleView: React.FC = () => {
       {isRecording && recordingSource === 'resample' && recordingPadId !== null && (
         <div className="mode-hint resample">
           <span>
-            🔴 Resampling su{' '}
-            <strong>
-              {BANK_LABELS[Math.floor(recordingPadId / 16)]}
-              {(recordingPadId % 16) + 1}
-            </strong>{' '}
-            — suona i pad!
+            🔴{' '}
+            {t('resamplingBanner', {
+              code: `${BANK_LABELS[Math.floor(recordingPadId / 16)]}${(recordingPadId % 16) + 1}`,
+            })}
           </span>
           <button
             type="button"
@@ -360,9 +352,9 @@ export const SampleView: React.FC = () => {
 
       {toolMode === 'resample' && !isRecording && (
         <div className="mode-hint resample">
-          <span>Tocca il pad su cui registrare il resample interno.</span>
+          <span>{t('resamplePickTarget')}</span>
           <button type="button" className="latency-banner-close" onClick={() => setToolMode('play')}>
-            Annulla
+            {t('cancel')}
           </button>
         </div>
       )}
@@ -371,16 +363,18 @@ export const SampleView: React.FC = () => {
         <div className="mode-hint">
           <span>
             {dragSourcePadId === null
-              ? `Tocca il pad da ${toolMode === 'copy' ? 'copiare' : 'scambiare'}.`
-              : `Ora tocca il pad di destinazione.`}
+              ? toolMode === 'copy'
+                ? t('copyPickFirst')
+                : t('swapPickFirst')
+              : t('pickTargetPad')}
           </span>
           <button type="button" className="latency-banner-close" onClick={() => setToolMode('play')}>
-            Fine
+            {t('done')}
           </button>
         </div>
       )}
 
-      {/* 4x4 Multi-Touch Pad Grid (Hold any empty pad = instant Mic record!) */}
+      {/* 4x4 Multi-Touch Pad Grid */}
       <div className="sample-body">
         <PadGrid
           onStartMicHold={(padId) => void handleStartMicHold(padId)}
@@ -398,12 +392,12 @@ export const SampleView: React.FC = () => {
           />
           <div style={{ minWidth: 0 }}>
             <div className="selected-pad-title">
-              {selectedCode} · {selectedPad?.hasSample ? selectedPad.name : 'Vuoto'}
+              {selectedCode} · {selectedPad?.hasSample ? selectedPad.name : t('emptyPad')}
             </div>
             <div className="selected-pad-meta">
               {selectedPad?.hasSample
                 ? `${(selectedPad.duration * (selectedPad.end - selectedPad.start)).toFixed(2)}s · ${selectedPad.pitch >= 0 ? `+${selectedPad.pitch}` : selectedPad.pitch}st`
-                : 'Tieni premuto per Mic · oppure IMPORT'}
+                : t('emptyPadHint')}
             </div>
           </div>
         </div>
@@ -450,7 +444,7 @@ export const SampleView: React.FC = () => {
             assignSampleToPad(selectedPadId, buffer, name);
             setPendingVideoFile(null);
             setEditorOpen(true, 'edit');
-            showToast(`Campionato da video (${buffer.duration.toFixed(1)}s)`);
+            showToast(t('sampledFromVideo', { sec: buffer.duration.toFixed(1) }));
           }}
           onClose={() => setPendingVideoFile(null)}
         />

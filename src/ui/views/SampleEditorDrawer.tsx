@@ -17,6 +17,7 @@ import { audioEngine } from '../../audio/AudioEngine';
 import { voiceManager } from '../../audio/VoiceManager';
 import { computeEqualSlices, detectTransients } from '../../audio/AutoChop';
 import { WaveformCanvas } from '../components/WaveformCanvas';
+import { t } from '../../i18n/t';
 
 interface SampleEditorDrawerProps {
   onRequestImport?: () => void;
@@ -73,7 +74,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
       void audioEngine.unlock();
       voiceManager.triggerPad(pad);
       setSlices([pad.start]);
-      showToast('In riproduzione: premi "+ MARK" a tempo per tagliare!');
+      showToast(t('lazyPlayingToast'));
       return;
     }
     const pos = pb.normalizedPos;
@@ -92,7 +93,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
           className="editor-name-input"
           value={pad.name}
           onChange={(e) => updatePad(pad.id, { name: e.target.value })}
-          aria-label="Nome pad"
+          aria-label={t('padNameAria')}
         />
 
         <div className="editor-tabs">
@@ -125,7 +126,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
               }
             }}
             onPointerUp={() => voiceManager.releasePad(pad.id)}
-            title="Ascolta / Ferma sample"
+            title={t('auditionSample')}
           >
             <Play size={14} />
           </button>
@@ -133,7 +134,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
             type="button"
             className="icon-btn"
             onClick={() => setEditorOpen(false)}
-            aria-label="Chiudi editor"
+            aria-label={t('closeEditor')}
           >
             <X size={16} />
           </button>
@@ -142,7 +143,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
 
       {!pad.hasSample ? (
         <div className="phase-placeholder">
-          <p>Questo pad è vuoto. Registra dal microfono, importa un file audio/video o carica lo Starter Kit.</p>
+          <p>{t('emptyEditorMsg')}</p>
         </div>
       ) : (
         <>
@@ -342,7 +343,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
                     onClick={onRequestImport}
                   >
                     <Film size={13} />
-                    Import Video/Audio
+                    {t('importVideoAudio')}
                   </button>
                 )}
                 <button
@@ -473,7 +474,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
 
               <div className="chop-row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
                 <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                  Tocca la forma d&apos;onda per ascoltare i singoli slice ({slices.length}).
+                  {t('chopTapHint', { count: slices.length })}
                 </span>
                 <button
                   type="button"
@@ -485,7 +486,7 @@ export const SampleEditorDrawer: React.FC<SampleEditorDrawerProps> = ({ onReques
                   }}
                 >
                   <CheckCircle2 size={15} />
-                  <span>Assign {slices.length} to Pads</span>
+                  <span>{t('assignToPads', { count: slices.length })}</span>
                 </button>
               </div>
             </div>

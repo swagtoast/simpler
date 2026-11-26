@@ -1,18 +1,20 @@
+import { I18nKey } from '../i18n/t';
+
 export type PerformFxId = 'lpf' | 'hpf' | 'crush' | 'delay' | 'reverb' | 'stutter';
 
 export interface PerformFxMeta {
   id: PerformFxId;
   label: string;
-  hint: string;
+  hintKey: I18nKey;
 }
 
 export const PERFORM_FX_LIST: PerformFxMeta[] = [
-  { id: 'lpf', label: 'FILTER', hint: 'Taglia alti (Lo-Fi)' },
-  { id: 'hpf', label: 'HI-PASS', hint: 'Taglia bassi (Drop)' },
-  { id: 'crush', label: 'CRUSH', hint: 'Grana 12-bit SP' },
-  { id: 'delay', label: 'DELAY', hint: 'Eco Dub a tempo' },
-  { id: 'reverb', label: 'REVERB', hint: 'Spazio / Room' },
-  { id: 'stutter', label: 'STUTTER', hint: 'Ripeti a tempo' },
+  { id: 'lpf', label: 'FILTER', hintKey: 'fxLpfHint' },
+  { id: 'hpf', label: 'HI-PASS', hintKey: 'fxHpfHint' },
+  { id: 'crush', label: 'CRUSH', hintKey: 'fxCrushHint' },
+  { id: 'delay', label: 'DELAY', hintKey: 'fxDelayHint' },
+  { id: 'reverb', label: 'REVERB', hintKey: 'fxReverbHint' },
+  { id: 'stutter', label: 'STUTTER', hintKey: 'fxStutterHint' },
 ];
 
 /**

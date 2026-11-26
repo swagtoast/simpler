@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Copy, Check, Globe, X } from 'lucide-react';
 import { useStore } from '../../state/useStore';
+import { t } from '../../i18n/t';
 
 export const WorkshopQRModal: React.FC = () => {
   const open = useStore((s) => s.qrModalOpen);
@@ -46,10 +47,10 @@ export const WorkshopQRModal: React.FC = () => {
     try {
       await navigator.clipboard.writeText(currentUrl);
       setCopied(true);
-      showToast('Link copiato');
+      showToast(t('linkCopiedToast'));
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      showToast('Copia manuale dalla casella URL');
+      showToast(t('copyManualToast'));
     }
   };
 
@@ -58,8 +59,8 @@ export const WorkshopQRModal: React.FC = () => {
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <h2 className="modal-title">Simpler — QR Workshop</h2>
-            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Un campionatore facile.</div>
+            <h2 className="modal-title">{t('qrTitle')}</h2>
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{t('appTagline')}</div>
           </div>
           <button type="button" className="icon-btn" onClick={() => setOpen(false)}>
             <X size={16} />
@@ -71,7 +72,7 @@ export const WorkshopQRModal: React.FC = () => {
             <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
           ) : (
             <div style={{ width: 240, height: 240, display: 'grid', placeItems: 'center', color: '#111' }}>
-              Generazione QR...
+              {t('qrGenerating')}
             </div>
           )}
           <div className="qr-url">{currentUrl}</div>
@@ -83,24 +84,20 @@ export const WorkshopQRModal: React.FC = () => {
           style={{ maxWidth: '100%', fontSize: 12, fontFamily: 'var(--font-mono)' }}
           value={customUrl}
           onChange={(e) => setCustomUrl(e.target.value)}
-          placeholder="https://tuonome.github.io/padbox/"
-          aria-label="URL del QR code"
+          placeholder="https://swagtoast.github.io/simpler/"
+          aria-label={t('qrUrlAria')}
         />
 
         {isLocal && (
           <div className="mode-hint resample" style={{ fontSize: 11.5 }}>
-            <span>
-              ⚠️ Questo è un indirizzo locale: per gli studenti in <strong>4G/5G senza Wi-Fi condiviso</strong>,
-              pubblica gratis su <strong>GitHub Pages</strong> o <strong>Cloudflare Pages</strong> (HTTPS automatico
-              per microfono + 0 latenza offline) e incolla qui il link pubblico.
-            </span>
+            <span>⚠️ {t('qrLocalWarn')}</span>
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="primary-cta" style={{ flex: 1 }} onClick={handleCopy}>
             {copied ? <Check size={15} /> : <Copy size={15} />}
-            <span>{copied ? 'Copiato!' : 'Copia Link'}</span>
+            <span>{copied ? t('copied') : t('copyLink')}</span>
           </button>
           <span
             className="toggle-chip"
@@ -112,7 +109,7 @@ export const WorkshopQRModal: React.FC = () => {
             }}
           >
             <Globe size={13} />
-            {isHttps ? 'HTTPS Ready (Mic OK)' : 'Serve HTTPS per Mic'}
+            {isHttps ? t('httpsReady') : t('httpsNeeded')}
           </span>
         </div>
       </div>

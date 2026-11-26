@@ -15,6 +15,7 @@ import { audioEngine } from '../audio/AudioEngine';
 import { voiceManager } from '../audio/VoiceManager';
 import { generateStarterKit } from '../audio/StarterKit';
 import { PerformFxId } from '../audio/PerformFxEngine';
+import { t } from '../i18n/t';
 import { cropBuffer, normalizeBuffer } from '../audio/AutoChop';
 import {
   clearAllStoredSamples,
@@ -401,7 +402,9 @@ export const useStore = create<AppState>((set, get) => {
       const project = { ...state.project, pads };
       scheduleSaveMeta(project);
       set({ project, selectedPadId: toId });
-      get().showToast(`Copiato su ${BANK_LABELS[Math.floor(toId / 16)]}${(toId % 16) + 1}`);
+      get().showToast(
+        t('copiedToPad', { code: `${BANK_LABELS[Math.floor(toId / 16)]}${(toId % 16) + 1}` })
+      );
     },
 
     swapPads: (aId, bId) => {
@@ -418,7 +421,7 @@ export const useStore = create<AppState>((set, get) => {
       const project = { ...state.project, pads };
       scheduleSaveMeta(project);
       set({ project, selectedPadId: bId });
-      get().showToast('Pad scambiati');
+      get().showToast(t('padsSwapped'));
     },
 
     applyDestructiveNormalize: (padId) => {
@@ -441,7 +444,7 @@ export const useStore = create<AppState>((set, get) => {
         reverse: pad.reverse,
         chokeGroup: pad.chokeGroup,
       });
-      get().showToast('Sample normalizzato');
+      get().showToast(t('sampleNormalized'));
     },
 
     applyDestructiveCrop: (padId) => {
@@ -464,7 +467,7 @@ export const useStore = create<AppState>((set, get) => {
         reverse: pad.reverse,
         chokeGroup: pad.chokeGroup,
       });
-      get().showToast('Sample ritagliato (Crop)');
+      get().showToast(t('sampleCropped'));
     },
 
     applyDestructiveReverse: (padId) => {
@@ -487,7 +490,7 @@ export const useStore = create<AppState>((set, get) => {
         loop: pad.loop,
         chokeGroup: pad.chokeGroup,
       });
-      get().showToast('Buffer invertito');
+      get().showToast(t('bufferReversed'));
     },
 
     assignSlicesToPads: (sourcePadId, rawSlices) => {
@@ -511,7 +514,7 @@ export const useStore = create<AppState>((set, get) => {
       }
 
       if (targetIds.length === 0) {
-        get().showToast('Nessun pad libero disponibile (svuota un banco prima)');
+        get().showToast(t('noFreePads'));
         return 0;
       }
 
@@ -551,7 +554,9 @@ export const useStore = create<AppState>((set, get) => {
       scheduleSaveMeta(project);
       const targetBank = Math.floor(targetIds[0] / 16) as BankId;
       set({ project, activeBank: targetBank, selectedPadId: targetIds[0] });
-      get().showToast(`${targetIds.length} slice assegnati ai pad (Choke ${srcPad.chokeGroup || 4})`);
+      get().showToast(
+        t('slicesAssigned', { count: targetIds.length, choke: srcPad.chokeGroup || 4 })
+      );
       return targetIds.length;
     },
 
@@ -582,7 +587,7 @@ export const useStore = create<AppState>((set, get) => {
       const project = { ...state.project, name: 'Boom Bap Kit', bpm: 92, pads };
       scheduleSaveMeta(project);
       set({ project, activeBank: 0, selectedPadId: 0 });
-      get().showToast('Boom Bap Kit caricato (Banco A)');
+      get().showToast(t('kitLoaded'));
     },
 
     clearProject: () => {
@@ -600,7 +605,7 @@ export const useStore = create<AppState>((set, get) => {
         editorOpen: false,
         keyboardOpen: false,
       });
-      get().showToast('Progetto svuotato');
+      get().showToast(t('projectCleared'));
     },
 
     undo: () => {
@@ -612,7 +617,7 @@ export const useStore = create<AppState>((set, get) => {
         project: prev,
         undoStack: stack.slice(0, -1),
       });
-      get().showToast('Annullato (Undo)');
+      get().showToast(t('undoneToast'));
     },
 
     // --- Sequencer & Piano Roll Actions ---
@@ -629,7 +634,7 @@ export const useStore = create<AppState>((set, get) => {
     addSequence: () => {
       const state = get();
       if (state.project.sequences.length >= 16) {
-        get().showToast('Massimo 16 sequenze raggiunte');
+        get().showToast(t('maxSeqReached'));
         return;
       }
       pushUndo(state.project);
@@ -653,7 +658,7 @@ export const useStore = create<AppState>((set, get) => {
       const src = state.project.sequences.find((s) => s.id === seqId);
       if (!src) return;
       if (state.project.sequences.length >= 16) {
-        get().showToast('Massimo 16 sequenze raggiunte');
+        get().showToast(t('maxSeqReached'));
         return;
       }
       pushUndo(state.project);
@@ -672,7 +677,7 @@ export const useStore = create<AppState>((set, get) => {
       };
       scheduleSaveMeta(project);
       set({ project, activeSequenceId: copy.id });
-      get().showToast(`Duplicata in ${copy.name}`);
+      get().showToast(t('duplicatedInto', { name: copy.name }));
     },
 
     deleteSequence: (seqId) => {
@@ -701,7 +706,7 @@ export const useStore = create<AppState>((set, get) => {
       const project = { ...state.project, sequences };
       scheduleSaveMeta(project);
       set({ project });
-      get().showToast('Sequenza svuotata');
+      get().showToast(t('seqCleared'));
     },
 
     setSequenceBars: (seqId, bars) => {
@@ -858,7 +863,7 @@ export const useStore = create<AppState>((set, get) => {
       const project = { ...state.project, sequences };
       scheduleSaveMeta(project);
       set({ project });
-      get().showToast(`Note allineate a 1/${q}`);
+      get().showToast(t('notesQuantized', { q }));
     },
 
     clearPadFromSequence: (seqId, padId) => {

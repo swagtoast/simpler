@@ -21,6 +21,7 @@ import { PadGrid } from '../components/PadGrid';
 import { PianoRollOverlay } from '../components/PianoRollOverlay';
 import { ExportModal } from '../components/ExportModal';
 import { KeyboardOverlay } from '../components/KeyboardOverlay';
+import { t } from '../../i18n/t';
 
 const QUANT_OPTIONS = [16, 8, 12, 0] as const;
 const SWING_PRESETS = [0, 0.2, 0.38, 0.55] as const;
@@ -100,7 +101,7 @@ export const SequenceView: React.FC = () => {
     const next = QUANT_OPTIONS[(idx + 1) % QUANT_OPTIONS.length];
     setQuantize(next);
     showToast(
-      next === 0 ? 'Quantize: OFF (libero)' : next === 12 ? 'Quantize: 1/8 Terzine' : `Quantize: 1/${next}`
+      next === 0 ? t('quantFree') : next === 12 ? t('quantTriplet') : `Quantize: 1/${next}`
     );
   };
 
@@ -116,7 +117,7 @@ export const SequenceView: React.FC = () => {
     const idx = BAR_OPTIONS.indexOf(activeSeq.bars as (typeof BAR_OPTIONS)[number]);
     const next = BAR_OPTIONS[(idx + 1) % BAR_OPTIONS.length];
     setSequenceBars(activeSeq.id, next);
-    showToast(`${activeSeq.name}: ${next} ${next === 1 ? 'battuta' : 'battute'}`);
+    showToast(`${activeSeq.name}: ${next} ${next === 1 ? t('barsSingle') : t('barsPlural')}`);
   };
 
   const quantLabel =
@@ -153,7 +154,7 @@ export const SequenceView: React.FC = () => {
           type="button"
           className={`pill-btn ${metronomeOn ? 'active-primary' : ''}`}
           onClick={() => sequencerEngine.toggleMetronome()}
-          title="Metronomo 4/4 (tieni premuta l'icona in alto per il volume)"
+          title={t('clickTitle')}
         >
           <Volume2 size={13} />
           <span>CLICK</span>
@@ -163,7 +164,7 @@ export const SequenceView: React.FC = () => {
           type="button"
           className={`pill-btn ${quantize > 0 ? 'active-mode' : ''}`}
           onClick={cycleQuantize}
-          title="Allinea automaticamente i colpi a tempo (Quantize)"
+          title={t('quantTitle')}
         >
           <span>{quantLabel}</span>
         </button>
@@ -172,7 +173,7 @@ export const SequenceView: React.FC = () => {
           type="button"
           className={`pill-btn ${swing > 0 ? 'active-resample' : ''}`}
           onClick={cycleSwing}
-          title="Swing Boom Bap"
+          title={t('swingTitle')}
         >
           <span>SWING {Math.round(swing * 100)}%</span>
         </button>
@@ -181,7 +182,7 @@ export const SequenceView: React.FC = () => {
           type="button"
           className="pill-btn active-primary"
           onClick={() => setPianoRollOpen(true)}
-          title="Apri griglia visiva (Piano Roll) per disegnare o correggere il beat"
+          title={t('editBeatTitle')}
         >
           <Grid size={13} />
           <span>EDIT BEAT</span>
@@ -191,7 +192,7 @@ export const SequenceView: React.FC = () => {
           type="button"
           className="pill-btn"
           onClick={() => setExportModalOpen(true)}
-          title="Scarica il tuo beat in formato WAV"
+          title={t('wavTitle')}
         >
           <Download size={13} />
           <span>WAV</span>
@@ -216,7 +217,7 @@ export const SequenceView: React.FC = () => {
                   <span className="seq-slot-bars">{seq.bars}B</span>
                 </div>
                 <div className="seq-slot-meta">
-                  {hasNotes ? `${seq.notes.length} note` : 'Vuota'}
+                  {hasNotes ? t('notesCount', { count: seq.notes.length }) : t('emptySeq')}
                 </div>
                 <div
                   ref={(el) => {
@@ -232,7 +233,7 @@ export const SequenceView: React.FC = () => {
             type="button"
             className="seq-slot add-slot"
             onClick={addSequence}
-            title="Aggiungi nuova sequenza"
+            title={t('addSeqTitle')}
           >
             <Plus size={16} />
           </button>
@@ -241,14 +242,14 @@ export const SequenceView: React.FC = () => {
         {/* Active Pattern Quick Controls */}
         {activeSeq && (
           <div className="seq-slot-actions">
-            <button type="button" className="pill-btn" onClick={cycleBars} title="Lunghezza in battute">
+            <button type="button" className="pill-btn" onClick={cycleBars} title={t('barsTitle')}>
               <span>{activeSeq.bars} BAR</span>
             </button>
             <button
               type="button"
               className={`pill-btn ${songMode ? 'active-mode' : ''}`}
               onClick={toggleSongMode}
-              title="Concatena tutte le sequenze piene in ordine (Song Mode)"
+              title={t('songTitle')}
             >
               <Repeat size={12} />
               <span>SONG</span>
@@ -257,7 +258,7 @@ export const SequenceView: React.FC = () => {
               type="button"
               className="pill-btn"
               onClick={() => duplicateSequence(activeSeq.id)}
-              title="Duplica sequenza"
+              title={t('dupSeqTitle')}
             >
               <Copy size={12} />
             </button>
@@ -265,7 +266,7 @@ export const SequenceView: React.FC = () => {
               type="button"
               className="pill-btn"
               onClick={() => clearSequence(activeSeq.id)}
-              title="Svuota note della sequenza"
+              title={t('clearSeqTitle')}
             >
               <Trash2 size={12} />
             </button>
@@ -276,17 +277,13 @@ export const SequenceView: React.FC = () => {
       {/* Friendly Count-In / Recording Guide */}
       {isCountingIn && (
         <div className="mode-hint rec" style={{ justifyContent: 'center', fontSize: 14 }}>
-          <span>
-            Pronti... <strong>{countInBeat}</strong> / 4 — inizia a suonare i pad!
-          </span>
+          <span>{t('countInReady', { beat: countInBeat })}</span>
         </div>
       )}
 
       {!isCountingIn && isSeqRecording && (
         <div className="mode-hint rec" style={{ fontSize: 12 }}>
-          <span>
-            🔴 <strong>Registrazione attiva</strong> su {activeSeq?.name}: suona i pad a tempo per aggiungere suoni in loop!
-          </span>
+          <span>🔴 {t('seqRecActive', { name: activeSeq?.name ?? 'Seq 1' })}</span>
           <button
             type="button"
             className="latency-banner-close"
@@ -297,7 +294,7 @@ export const SequenceView: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Bank Selector + ERASE + KEYS + 4x4 Pads */}
+      {/* 3. Bank Selector + VOL + ERASE + KEYS + 4x4 Pads */}
       <div className="seq-bank-row">
         <div className="bank-switcher">
           {([0, 1, 2, 3] as BankId[]).map((b) => (
@@ -320,7 +317,7 @@ export const SequenceView: React.FC = () => {
               setEraseMode(false);
               togglePadMixerMode();
             }}
-            title="Mostra fader volume e barre LED sui pad"
+            title={t('volBtnTitle')}
           >
             <SlidersVertical size={13} />
             <span>VOL</span>
@@ -331,10 +328,10 @@ export const SequenceView: React.FC = () => {
             className={`pill-btn ${eraseMode ? 'active-rec' : ''}`}
             disabled={!activeSeq || activeSeq.notes.length === 0}
             onClick={() => setEraseMode((v) => !v)}
-            title="Tocca un pad per eliminare i suoi colpi da questa sequenza"
+            title={t('eraseTitle')}
           >
             <Eraser size={13} />
-            <span>{eraseMode ? 'FINE' : 'ERASE'}</span>
+            <span>{eraseMode ? t('done').toUpperCase() : 'ERASE'}</span>
           </button>
 
           <button
@@ -344,7 +341,7 @@ export const SequenceView: React.FC = () => {
               setEraseMode(false);
               setKeyboardOpen(true);
             }}
-            title="Suona melodie sul pad selezionato e registrali nella sequenza"
+            title={t('keysSeqTitle')}
           >
             <Piano size={13} />
             <span>KEYS</span>
@@ -354,11 +351,9 @@ export const SequenceView: React.FC = () => {
 
       {eraseMode && activeSeq && (
         <div className="mode-hint rec" style={{ fontSize: 12 }}>
-          <span>
-            Tocca un pad con <strong>×</strong> per toglierlo da <strong>{activeSeq.name}</strong> (puoi sempre fare Undo).
-          </span>
+          <span>{t('eraseHint', { name: activeSeq.name })}</span>
           <button type="button" className="latency-banner-close" onClick={() => setEraseMode(false)}>
-            Fine
+            {t('done')}
           </button>
         </div>
       )}
@@ -372,8 +367,7 @@ export const SequenceView: React.FC = () => {
             if (!activeSeq) return;
             clearPadFromSequence(activeSeq.id, padId);
             const padName = pads[padId]?.name || 'Pad';
-            showToast(`Rimosso "${padName}" da ${activeSeq.name}`);
-            // Auto-exit erase mode if sequence is now completely empty
+            showToast(t('removedFromSeq', { pad: padName, seq: activeSeq.name }));
             const remaining = activeSeq.notes.filter((n) => n.padId !== padId).length;
             if (remaining === 0) setEraseMode(false);
           }}

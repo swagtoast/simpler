@@ -3,6 +3,7 @@ import { QrCode, Square, Play, Undo2, Menu, Disc3, Trash2, X } from 'lucide-reac
 import { useStore } from '../../state/useStore';
 import { audioEngine } from '../../audio/AudioEngine';
 import { sequencerEngine } from '../../audio/SequencerEngine';
+import { t } from '../../i18n/t';
 
 const TOP_VU_SEGS = 8;
 
@@ -172,14 +173,14 @@ export const TopBar: React.FC = () => {
     <>
       <header className="top-bar">
         <div className="brand-cluster">
-          <div className="brand-logo" title="Simpler — Un campionatore facile.">
+          <div className="brand-logo" title={t('appTitle')}>
             <span className="brand-badge-akai">SIMPLER</span>
           </div>
 
           <button
             type="button"
             className="bpm-chip"
-            title="Trascina su/giù per regolare i BPM"
+            title={t('bpmDragHint')}
             onPointerDown={handleBpmPointerDown}
             onPointerMove={handleBpmPointerMove}
             onPointerUp={handleBpmPointerUp}
@@ -195,7 +196,7 @@ export const TopBar: React.FC = () => {
             ref={tapBtnRef}
             type="button"
             className="tap-btn"
-            title="Tap Tempo: premi a tempo per impostare i BPM"
+            title={t('tapTempoHint')}
             onPointerDown={handleTapTempo}
           >
             TAP
@@ -224,7 +225,7 @@ export const TopBar: React.FC = () => {
             <button
               type="button"
               className={`icon-btn ${metronomeOn ? 'accent' : ''}`}
-              title="Metronomo 4/4: tocca per ON/OFF, tieni premuto per il volume"
+              title={t('metroHint')}
               onPointerDown={handleMetroPointerDown}
               onPointerMove={handleMetroPointerMove}
               onPointerUp={handleMetroPointerUp}
@@ -242,7 +243,7 @@ export const TopBar: React.FC = () => {
                 />
                 <div className="metro-popover" onPointerDown={(e) => e.stopPropagation()}>
                   <div className="metro-pop-head">
-                    <span>METRONOMO 4/4</span>
+                    <span>{t('metroTitle')}</span>
                     <span className="param-val">{Math.round(metronomeVolume * 100)}%</span>
                   </div>
                   <input
@@ -253,7 +254,7 @@ export const TopBar: React.FC = () => {
                     step={0.01}
                     value={metronomeVolume}
                     onChange={(e) => setMetronomeVolume(Number(e.target.value))}
-                    aria-label="Volume metronomo"
+                    aria-label={t('metroVolAria')}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                     <button
@@ -281,7 +282,7 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             className={`icon-btn ${isSeqPlaying ? 'accent' : ''}`}
-            title={isSeqPlaying ? 'Stop Beat' : 'Play Beat'}
+            title={isSeqPlaying ? t('stopBeat') : t('playBeat')}
             onPointerDown={() => {
               if (isSeqPlaying) {
                 sequencerEngine.stop();
@@ -306,7 +307,7 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             className="icon-btn"
-            title="Condividi QR Workshop"
+            title={t('shareQrHint')}
             onClick={() => setQrModalOpen(true)}
           >
             <QrCode size={15} />
@@ -315,7 +316,7 @@ export const TopBar: React.FC = () => {
           <button
             type="button"
             className="icon-btn"
-            title="Menu Progetto"
+            title={t('projectMenuHint')}
             onClick={() => setMenuOpen(!menuOpen)}
           >
             <Menu size={16} />
@@ -330,7 +331,7 @@ export const TopBar: React.FC = () => {
               <div>
                 <h2 className="modal-title">SIMPLER</h2>
                 <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                  Un campionatore facile.
+                  {t('appTagline')}
                 </div>
               </div>
               <button type="button" className="icon-btn" onClick={() => setMenuOpen(false)}>
@@ -348,7 +349,7 @@ export const TopBar: React.FC = () => {
                 }}
               >
                 <QrCode size={16} />
-                <span>Condividi QR Code (Workshop)</span>
+                <span>{t('menuShareQr')}</span>
               </button>
 
               <button
@@ -362,7 +363,7 @@ export const TopBar: React.FC = () => {
                 }}
               >
                 <Disc3 size={16} />
-                <span>Carica Boom Bap Starter Kit (Bank A)</span>
+                <span>{t('menuLoadKit')}</span>
               </button>
 
               <button
@@ -374,7 +375,7 @@ export const TopBar: React.FC = () => {
                 }}
               >
                 <Trash2 size={16} />
-                <span>Nuovo Progetto Vuoto (Clear All)</span>
+                <span>{t('menuClearAll')}</span>
               </button>
             </div>
           </div>

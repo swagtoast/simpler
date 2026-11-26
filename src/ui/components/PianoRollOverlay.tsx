@@ -4,6 +4,7 @@ import { useStore } from '../../state/useStore';
 import { audioEngine } from '../../audio/AudioEngine';
 import { voiceManager } from '../../audio/VoiceManager';
 import { sequencerEngine } from '../../audio/SequencerEngine';
+import { t } from '../../i18n/t';
 
 interface PianoRollOverlayProps {
   seqId: string;
@@ -85,7 +86,7 @@ export const PianoRollOverlay: React.FC<PianoRollOverlayProps> = ({ seqId }) => 
             type="button"
             className="pill-btn"
             onClick={() => quantizeSequenceNow(seq.id)}
-            title="Allinea tutte le note a tempo"
+            title={t('prQuantAll')}
           >
             <Wand2 size={13} />
             <span>Quantize</span>
@@ -94,7 +95,7 @@ export const PianoRollOverlay: React.FC<PianoRollOverlayProps> = ({ seqId }) => 
             type="button"
             className="pill-btn"
             onClick={() => clearSequence(seq.id)}
-            title="Svuota sequenza"
+            title={t('clearSeqTitle')}
           >
             <Trash2 size={13} />
           </button>
@@ -102,23 +103,21 @@ export const PianoRollOverlay: React.FC<PianoRollOverlayProps> = ({ seqId }) => 
             type="button"
             className="icon-btn"
             onClick={() => setPianoRollOpen(false)}
-            aria-label="Chiudi Piano Roll"
+            aria-label={t('prClose')}
           >
             <X size={16} />
           </button>
         </div>
       </div>
 
-      <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-        Tocca una casella per inserire o rimuovere un colpo. I numeri in alto sono i battiti (1 · 2 · 3 · 4).
-      </div>
+      <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{t('prHint')}</div>
 
       {/* Main Scrollable Step / Piano Roll Matrix */}
       <div className="pr-scroll-container">
         <div className="pr-matrix" style={{ minWidth: `${Math.max(520, totalSteps * 26 + 118)}px` }}>
           {/* Beat Ruler Header */}
           <div className="pr-ruler-row">
-            <div className="pr-label-col pr-corner">SUONO</div>
+            <div className="pr-label-col pr-corner">{t('prSoundCol')}</div>
             <div className="pr-steps-area">
               <div
                 className="pr-steps-grid"
@@ -172,7 +171,7 @@ export const PianoRollOverlay: React.FC<PianoRollOverlayProps> = ({ seqId }) => 
                       type="button"
                       className={`pr-mute-btn ${isMuted ? 'on' : ''}`}
                       onClick={() => toggleMutePad(pad.id)}
-                      title={isMuted ? 'Riattiva traccia' : 'Muta traccia'}
+                      title={isMuted ? t('prUnmute') : t('prMute')}
                     >
                       {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
                     </button>
@@ -246,7 +245,7 @@ export const PianoRollOverlay: React.FC<PianoRollOverlayProps> = ({ seqId }) => 
               />
               <strong>Velocity: {focusedPad.name}</strong>
               <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
-                ({focusedNotes.length} colpi)
+                {t('prHitsCount', { count: focusedNotes.length })}
               </span>
             </div>
             {focusedNotes.length > 0 && (
@@ -257,14 +256,14 @@ export const PianoRollOverlay: React.FC<PianoRollOverlayProps> = ({ seqId }) => 
                 onClick={() => clearPadFromSequence(seq.id, focusedPad.id)}
               >
                 <Trash2 size={11} />
-                <span>Svuota {focusedPad.name}</span>
+                <span>{t('prClearPad', { name: focusedPad.name })}</span>
               </button>
             )}
           </div>
 
           {focusedNotes.length === 0 ? (
             <div style={{ fontSize: 11.5, color: 'var(--text-muted)', padding: '6px 0' }}>
-              Tocca la riga di <strong>{focusedPad.name}</strong> sopra per aggiungere colpi e poi regola qui il loro volume (velocity).
+              {t('prVelEmpty', { name: focusedPad.name })}
             </div>
           ) : (
             <div className="pr-vel-bars">

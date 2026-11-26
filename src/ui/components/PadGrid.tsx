@@ -5,6 +5,7 @@ import { audioEngine } from '../../audio/AudioEngine';
 import { voiceManager } from '../../audio/VoiceManager';
 import { recorderService } from '../../audio/RecorderService';
 import { sequencerEngine } from '../../audio/SequencerEngine';
+import { t } from '../../i18n/t';
 
 const KEYBOARD_MAP = [
   '1', '2', '3', '4',
@@ -249,10 +250,10 @@ export const PadGrid: React.FC<PadGridProps> = ({
         void recorderService
           .ensureMicStream()
           .then(() => {
-            showToast('Microfono pronto! Ora tieni premuto il pad per registrare');
+            showToast(t('micReadyToast'));
           })
           .catch((err) => {
-            showToast(err instanceof Error ? err.message : 'Permesso microfono negato');
+            showToast(err instanceof Error ? err.message : t('micDeniedToast'));
           });
         return;
       }
@@ -300,7 +301,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
       if (info.micStarted && onStopMicHold) {
         onStopMicHold(info.padId);
       } else {
-        showToast('Tieni premuto un pad vuoto per registrare col microfono');
+        showToast(t('holdToRecHint'));
       }
     } else {
       voiceManager.releasePad(info.padId);
@@ -375,7 +376,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
                     mixerDragPointers.current.delete(e.pointerId);
                   }}
                   onDoubleClick={() => updatePad(pad.id, { volume: 1 })}
-                  title="Trascina su/giù per regolare il volume (doppio tap = 100%)"
+                  title={t('padVolumeTitle')}
                 >
                   <div className="pad-fader-fill" style={{ height: `${faderFillPct}%` }} />
                   <div

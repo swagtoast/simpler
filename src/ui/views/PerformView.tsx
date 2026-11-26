@@ -6,6 +6,7 @@ import { sequencerEngine } from '../../audio/SequencerEngine';
 import { recorderService } from '../../audio/RecorderService';
 import { useStore } from '../../state/useStore';
 import { BANK_LABELS } from '../../state/types';
+import { t } from '../../i18n/t';
 
 const MASTER_SEGMENTS = 16;
 
@@ -91,9 +92,9 @@ export const PerformView: React.FC = () => {
       if (res?.buffer) {
         const code = `${BANK_LABELS[Math.floor(res.padId / 16)]}${(res.padId % 16) + 1}`;
         assignSampleToPad(res.padId, res.buffer, `FX ${code}`);
-        showToast(`Resample FX salvato su ${code}`);
+        showToast(t('fxResampleSaved', { code }));
       } else {
-        showToast('Nessun audio catturato');
+        showToast(t('fxResampleEmpty'));
       }
       return;
     }
@@ -105,9 +106,9 @@ export const PerformView: React.FC = () => {
       await recorderService.startRecording('resample', targetId);
       setRecordingState(true, targetId, 'resample');
       const code = `${BANK_LABELS[Math.floor(targetId / 16)]}${(targetId % 16) + 1}`;
-      showToast(`Resampling su ${code}: muovi gli effetti e poi premi STOP!`);
+      showToast(t('fxResampleStart', { code }));
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Errore resampling');
+      showToast(err instanceof Error ? err.message : t('resampleError'));
     }
   };
 
@@ -131,7 +132,7 @@ export const PerformView: React.FC = () => {
             type="button"
             className={`seq-big-btn ${fxHold ? 'hold-on' : ''}`}
             onClick={toggleFxHold}
-            title="Blocca gli effetti nella posizione corrente"
+            title={t('fxHoldTitle')}
           >
             {fxHold ? <Lock size={14} /> : <Unlock size={14} />}
             <span>HOLD</span>
@@ -142,7 +143,7 @@ export const PerformView: React.FC = () => {
             className="pill-btn"
             disabled={!anyActive}
             onPointerDown={() => resetAllFx()}
-            title="Azzera subito tutti gli effetti"
+            title={t('fxResetTitle')}
           >
             <RotateCcw size={13} />
             <span>RESET</span>
@@ -153,7 +154,7 @@ export const PerformView: React.FC = () => {
           type="button"
           className={`pill-btn ${recordingSource === 'resample' ? 'active-rec' : ''}`}
           onClick={() => void handleToggleResample()}
-          title="Registra il beat con gli effetti su un pad libero"
+          title={t('fxResampleTitle')}
         >
           <Radio size={13} />
           <span>{recordingSource === 'resample' ? 'STOP RSMP' : 'RESAMPLE'}</span>
@@ -213,7 +214,7 @@ export const PerformView: React.FC = () => {
               </div>
 
               <div className="fx-foot">
-                <span className="fx-pct">{isLit ? `${pct}%` : fx.hint}</span>
+                <span className="fx-pct">{isLit ? `${pct}%` : t(fx.hintKey)}</span>
               </div>
             </div>
           );

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Circle, Square, X, Play, Pause } from 'lucide-react';
 import { audioEngine } from '../../audio/AudioEngine';
 import { recorderService } from '../../audio/RecorderService';
+import { t } from '../../i18n/t';
 
 interface VideoImportModalProps {
   file: File;
@@ -10,11 +11,6 @@ interface VideoImportModalProps {
   onClose: () => void;
 }
 
-/**
- * Fallback & interactive YouTube screen-recording sampler:
- * Lets students play/scrub a local screen-recording video from their phone gallery
- * and capture the exact audio snippet straight onto a pad via Web Audio.
- */
 export const VideoImportModal: React.FC<VideoImportModalProps> = ({
   file,
   targetPadId,
@@ -49,12 +45,11 @@ export const VideoImportModal: React.FC<VideoImportModalProps> = ({
     const ctx = await audioEngine.unlock();
     if (!mediaSourceRef.current && videoRef.current) {
       const node = ctx.createMediaElementSource(videoRef.current);
-      // Route video audio to speakers so the student hears what they are sampling
       node.connect(ctx.destination);
       mediaSourceRef.current = node;
     }
     if (!mediaSourceRef.current) {
-      throw new Error('Impossibile collegare la traccia audio del video.');
+      throw new Error(t('videoNodeError'));
     }
     return mediaSourceRef.current;
   };
@@ -72,7 +67,7 @@ export const VideoImportModal: React.FC<VideoImportModalProps> = ({
         setIsPlaying(false);
       }
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Errore riproduzione video');
+      setErrorMsg(err instanceof Error ? err.message : t('videoPlayError'));
     }
   };
 
@@ -92,7 +87,7 @@ export const VideoImportModal: React.FC<VideoImportModalProps> = ({
         setElapsed(0);
         setIsSampling(true);
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : 'Errore cattura audio dal video');
+        setErrorMsg(err instanceof Error ? err.message : t('videoCaptureError'));
       }
     } else {
       video.pause();
@@ -103,7 +98,7 @@ export const VideoImportModal: React.FC<VideoImportModalProps> = ({
         const cleanName = file.name.replace(/\.[^/.]+$/, '').slice(0, 16) || 'Video Sample';
         onCaptured(res.buffer, cleanName);
       } else {
-        setErrorMsg('Spezzone troppo breve: riprova lasciando scorrere il video.');
+        setErrorMsg(t('videoTooShort'));
       }
     }
   };
@@ -124,15 +119,14 @@ export const VideoImportModal: React.FC<VideoImportModalProps> = ({
     <div className="modal-backdrop" onClick={() => void handleClose()}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2 className="modal-title">Campiona da Video</h2>
+          <h2 className="modal-title">{t('videoModalTitle')}</h2>
           <button type="button" className="icon-btn" onClick={() => void handleClose()}>
             <X size={16} />
           </button>
         </div>
 
         <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          Posiziona il video sul punto che vuoi campionare (es. una registrazione schermo da YouTube) e premi{' '}
-          <strong>SAMPLE</strong> per registrarlo sul pad.
+          {t('videoModalDesc')}
         </p>
 
         {objectUrl && (
@@ -161,7 +155,7 @@ export const VideoImportModal: React.FC<VideoImportModalProps> = ({
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="icon-btn" style={{ flex: 1 }} onClick={() => void togglePlay()}>
             {isPlaying ? <Pause size={15} /> : <Play size={15} />}
-            <span>{isPlaying ? 'Pausa' : 'Play'}</span>
+            <span>{isPlaying ? t('pause') : 'Play'}</span>
           </button>
 
           <button
