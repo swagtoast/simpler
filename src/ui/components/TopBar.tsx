@@ -1,10 +1,29 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { QrCode, Square, Play, Undo2, Menu, Disc3, Trash2, X } from 'lucide-react';
 import { useStore } from '../../state/useStore';
 import { audioEngine } from '../../audio/AudioEngine';
 import { sequencerEngine } from '../../audio/SequencerEngine';
 
 const TOP_VU_SEGS = 8;
+
+const MetronomeIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.1"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M5.5 21h13L15 3H9L5.5 21z" />
+    <path d="M12 17L17.5 6.5" />
+    <circle cx="15.8" cy="9.8" r="1.6" fill="currentColor" stroke="none" />
+    <path d="M8 17h8" />
+  </svg>
+);
 
 export const TopBar: React.FC = () => {
   const bpm = useStore((s) => s.project.bpm);
@@ -15,13 +34,24 @@ export const TopBar: React.FC = () => {
   const menuOpen = useStore((s) => s.menuOpen);
   const setMenuOpen = useStore((s) => s.setMenuOpen);
   const isSeqPlaying = useStore((s) => s.isSeqPlaying);
+  const metronomeOn = useStore((s) => s.metronomeOn);
+  const metronomeVolume = useStore((s) => s.metronomeVolume);
+  const setMetronomeVolume = useStore((s) => s.setMetronomeVolume);
   const loadStarterKit = useStore((s) => s.loadStarterKit);
   const clearProject = useStore((s) => s.clearProject);
+
+  const [metroVolOpen, setMetroVolOpen] = useState(false);
 
   const vuSegRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const tapBtnRef = useRef<HTMLButtonElement | null>(null);
   const tapTimesRef = useRef<number[]>([]);
   const dragRef = useRef<{ startY: number; startBpm: number; moved: boolean } | null>(null);
+  const metroHoldRef = useRef<{
+    timer: number | null;
+    openedByHold: boolean;
+    startY: number;
+    startVol: number;
+  }>({ timer: null, openedByHold: false, startY: 0, startVol: 0.75 });
 
   useEffect(() => {
     let raf = 0;
@@ -86,6 +116,58 @@ export const TopBar: React.FC = () => {
     dragRef.current = null;
   };
 
+  // Metronome button: Tap = Toggle 4/4 ON/OFF | Hold (>= 280ms) = Open Volume Slider (and allow vertical drag!)
+  const handleMetroPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    void audioEngine.unlock();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    if (metroHoldRef.current.timer !== null) {
+      window.clearTimeout(metroHoldRef.current.timer);
+    }
+    metroHoldRef.current = {
+      timer: window.setTimeout(() => {
+        metroHoldRef.current.openedByHold = true;
+        setMetroVolOpen(true);
+        // Turn metronome ON while adjusting volume so user immediately hears the level!
+        if (!useStore.getState().metronomeOn) {
+          sequencerEngine.setMetronomeEnabled(true);
+        }
+      }, 280),
+      openedByHold: false,
+      startY: e.clientY,
+      startVol: metronomeVolume,
+    };
+  };
+
+  const handleMetroPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!metroHoldRef.current.openedByHold) return;
+    const dy = metroHoldRef.current.startY - e.clientY;
+    if (Math.abs(dy) > 4) {
+      setMetronomeVolume(metroHoldRef.current.startVol + dy / 140);
+    }
+  };
+
+  const handleMetroPointerUp = () => {
+    if (metroHoldRef.current.timer !== null) {
+      window.clearTimeout(metroHoldRef.current.timer);
+      metroHoldRef.current.timer = null;
+    }
+    if (!metroHoldRef.current.openedByHold) {
+      // Short tap: toggle metronome ON/OFF (or close volume popover if open)
+      if (metroVolOpen) {
+        setMetroVolOpen(false);
+      } else {
+        sequencerEngine.toggleMetronome();
+      }
+    }
+    metroHoldRef.current.openedByHold = false;
+  };
+
   return (
     <>
       <header className="top-bar">
@@ -135,6 +217,65 @@ export const TopBar: React.FC = () => {
                 />
               );
             })}
+          </div>
+
+          {/* 4/4 Metronome Switch (Tap = ON/OFF, Hold = Volume) */}
+          <div className="metro-wrap">
+            <button
+              type="button"
+              className={`icon-btn ${metronomeOn ? 'accent' : ''}`}
+              title="Metronomo 4/4: tocca per ON/OFF, tieni premuto per il volume"
+              onPointerDown={handleMetroPointerDown}
+              onPointerMove={handleMetroPointerMove}
+              onPointerUp={handleMetroPointerUp}
+              onPointerCancel={handleMetroPointerUp}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <MetronomeIcon size={15} />
+            </button>
+
+            {metroVolOpen && (
+              <>
+                <div
+                  className="metro-backdrop"
+                  onPointerDown={() => setMetroVolOpen(false)}
+                />
+                <div className="metro-popover" onPointerDown={(e) => e.stopPropagation()}>
+                  <div className="metro-pop-head">
+                    <span>METRONOMO 4/4</span>
+                    <span className="param-val">{Math.round(metronomeVolume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    className="range-slider"
+                    min={0.05}
+                    max={1}
+                    step={0.01}
+                    value={metronomeVolume}
+                    onChange={(e) => setMetronomeVolume(Number(e.target.value))}
+                    aria-label="Volume metronomo"
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                    <button
+                      type="button"
+                      className={`toggle-chip ${metronomeOn ? 'on' : ''}`}
+                      style={{ flex: 1, justifyContent: 'center', height: 28 }}
+                      onClick={() => sequencerEngine.toggleMetronome()}
+                    >
+                      {metronomeOn ? 'ON' : 'OFF'}
+                    </button>
+                    <button
+                      type="button"
+                      className="toggle-chip"
+                      style={{ height: 28 }}
+                      onClick={() => setMetroVolOpen(false)}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <button

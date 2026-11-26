@@ -31,6 +31,11 @@ class SequencerEngineImpl {
   // Prevent double-triggering notes just recorded live in the same pass
   private recentlyRecordedIds = new Set<string>();
 
+  // Standalone 4/4 metronome loop (runs when metronome is ON while sequencer is stopped)
+  private standaloneTimerId: number | null = null;
+  private standaloneNextBeatTime = 0;
+  private standaloneBeatCount = 0;
+
   private readonly LOOKAHEAD_SEC = 0.08;
   private readonly INTERVAL_MS = 20;
 
@@ -79,23 +84,81 @@ class SequencerEngineImpl {
 
   private playMetronomeClick(when: number, accent: boolean): void {
     const ctx = audioEngine.context;
+    const vol = useStore.getState().metronomeVolume;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(accent ? 1280 : 860, when);
-    osc.frequency.exponentialRampToValueAtTime(accent ? 760 : 540, when + 0.025);
+    osc.frequency.setValueAtTime(accent ? 1320 : 880, when);
+    osc.frequency.exponentialRampToValueAtTime(accent ? 780 : 540, when + 0.024);
 
+    const peakGain = Math.max(0.0001, (accent ? 0.36 : 0.22) * vol);
     gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.linearRampToValueAtTime(accent ? 0.28 : 0.16, when + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.042);
+    gain.gain.linearRampToValueAtTime(peakGain, when + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.044);
 
     osc.connect(gain);
-    gain.connect(ctx.destination); // Bypass resample tap / master limiter? Actually direct to destination so click isn't resampled!
+    gain.connect(ctx.destination);
     osc.start(when);
     osc.stop(when + 0.05);
   }
 
+  private startStandaloneMetronome(): void {
+    if (this.standaloneTimerId !== null || this.isPlaying) return;
+    void audioEngine.unlock().then((ctx) => {
+      if (this.isPlaying || !useStore.getState().metronomeOn) return;
+      if (this.standaloneTimerId !== null) return;
+      this.standaloneBeatCount = 0;
+      this.standaloneNextBeatTime = ctx.currentTime + 0.02;
+      this.standaloneMetronomeTick();
+      this.standaloneTimerId = window.setInterval(
+        () => this.standaloneMetronomeTick(),
+        this.INTERVAL_MS
+      );
+    });
+  }
+
+  private stopStandaloneMetronome(): void {
+    if (this.standaloneTimerId !== null) {
+      window.clearInterval(this.standaloneTimerId);
+      this.standaloneTimerId = null;
+    }
+  }
+
+  private standaloneMetronomeTick(): void {
+    if (this.isPlaying || !useStore.getState().metronomeOn) {
+      this.stopStandaloneMetronome();
+      return;
+    }
+    const ctx = audioEngine.context;
+    const horizon = ctx.currentTime + this.LOOKAHEAD_SEC;
+    const spb = this.getSecondsPerBeat();
+
+    while (this.standaloneNextBeatTime < horizon) {
+      const accent = this.standaloneBeatCount % 4 === 0; // Fixed 4/4 time signature
+      this.playMetronomeClick(Math.max(ctx.currentTime, this.standaloneNextBeatTime), accent);
+      this.standaloneBeatCount = (this.standaloneBeatCount + 1) % 4;
+      this.standaloneNextBeatTime += spb;
+    }
+  }
+
+  setMetronomeEnabled(on: boolean): void {
+    useStore.getState().setMetronomeOn(on);
+    if (on) {
+      if (!this.isPlaying) {
+        this.startStandaloneMetronome();
+      }
+    } else {
+      this.stopStandaloneMetronome();
+    }
+  }
+
+  toggleMetronome(): void {
+    const next = !useStore.getState().metronomeOn;
+    this.setMetronomeEnabled(next);
+  }
+
   async start(withRecord = false): Promise<void> {
+    this.stopStandaloneMetronome();
     const ctx = await audioEngine.unlock();
     const state = useStore.getState();
 
@@ -145,6 +208,7 @@ class SequencerEngineImpl {
       window.clearInterval(this.timerId);
       this.timerId = null;
     }
+    this.stopStandaloneMetronome();
     this.isPlaying = false;
     this.isRecording = false;
     this.countingIn = false;
@@ -152,6 +216,9 @@ class SequencerEngineImpl {
     this.recentlyRecordedIds.clear();
     voiceManager.stopAll();
     useStore.getState().setSeqTransport(false, false, false, 0);
+    if (useStore.getState().metronomeOn) {
+      useStore.getState().setMetronomeOn(false);
+    }
   }
 
   togglePlay(): void {

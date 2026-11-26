@@ -69,6 +69,7 @@ export interface AppState {
   isCountingIn: boolean;
   countInBeat: number;
   metronomeOn: boolean;
+  metronomeVolume: number; // 0.05..1
   countInOn: boolean;
   songMode: boolean;
   mutedPads: number[];
@@ -138,6 +139,8 @@ export interface AppState {
   setSwing: (swing: number) => void;
   setQuantize: (quantize: number) => void;
   toggleMetronome: () => void;
+  setMetronomeOn: (on: boolean) => void;
+  setMetronomeVolume: (volume: number) => void;
   toggleCountIn: () => void;
   toggleSongMode: () => void;
   toggleMutePad: (padId: number) => void;
@@ -196,6 +199,7 @@ export const useStore = create<AppState>((set, get) => {
     isCountingIn: false,
     countInBeat: 0,
     metronomeOn: false,
+    metronomeVolume: 0.75,
     countInOn: true,
     songMode: false,
     mutedPads: [],
@@ -716,6 +720,11 @@ export const useStore = create<AppState>((set, get) => {
     },
 
     toggleMetronome: () => set((s) => ({ metronomeOn: !s.metronomeOn })),
+    setMetronomeOn: (on) => set({ metronomeOn: on }),
+    setMetronomeVolume: (volume) => {
+      const clamped = Math.max(0.05, Math.min(1, volume));
+      set({ metronomeVolume: clamped });
+    },
     toggleCountIn: () => set((s) => ({ countInOn: !s.countInOn })),
     toggleSongMode: () => set((s) => ({ songMode: !s.songMode })),
 

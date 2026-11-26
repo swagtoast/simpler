@@ -37,7 +37,6 @@ export const KeyboardOverlay: React.FC = () => {
   const countInBeat = useStore((s) => s.countInBeat);
   const metronomeOn = useStore((s) => s.metronomeOn);
 
-  const toggleMetronome = useStore((s) => s.toggleMetronome);
   const clearPadFromSequence = useStore((s) => s.clearPadFromSequence);
   const setKeyboardOpen = useStore((s) => s.setKeyboardOpen);
   const showToast = useStore((s) => s.showToast);
@@ -204,8 +203,8 @@ export const KeyboardOverlay: React.FC = () => {
             type="button"
             className={`pill-btn ${metronomeOn ? 'active-primary' : ''}`}
             style={{ height: 32, padding: '0 8px' }}
-            onClick={toggleMetronome}
-            title="Metronomo"
+            onClick={() => sequencerEngine.toggleMetronome()}
+            title="Metronomo 4/4"
           >
             <Volume2 size={13} />
           </button>

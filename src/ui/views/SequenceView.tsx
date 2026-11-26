@@ -52,7 +52,6 @@ export const SequenceView: React.FC = () => {
   const setSequenceBars = useStore((s) => s.setSequenceBars);
   const setQuantize = useStore((s) => s.setQuantize);
   const setSwing = useStore((s) => s.setSwing);
-  const toggleMetronome = useStore((s) => s.toggleMetronome);
   const toggleSongMode = useStore((s) => s.toggleSongMode);
   const setActiveBank = useStore((s) => s.setActiveBank);
   const setPianoRollOpen = useStore((s) => s.setPianoRollOpen);
@@ -153,8 +152,8 @@ export const SequenceView: React.FC = () => {
         <button
           type="button"
           className={`pill-btn ${metronomeOn ? 'active-primary' : ''}`}
-          onClick={toggleMetronome}
-          title="Metronomo (Click)"
+          onClick={() => sequencerEngine.toggleMetronome()}
+          title="Metronomo 4/4 (tieni premuta l'icona in alto per il volume)"
         >
           <Volume2 size={13} />
           <span>CLICK</span>

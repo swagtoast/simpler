@@ -200,6 +200,46 @@ button {
   box-shadow: 0 1.5px 0 #7f1111;
 }
 
+/* Metronome Hold-for-Volume Popover */
+.metro-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.metro-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  background: transparent;
+}
+
+.metro-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: 210px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-root);
+  border: 2px solid var(--border-strong);
+  border-top: 3px solid var(--accent-primary);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metro-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 900;
+  color: var(--text-secondary);
+}
+
 /* Segmented Hardware LED VU Meter (Green -> Yellow -> Red) */
 .vu-meter-seg {
   display: flex;
