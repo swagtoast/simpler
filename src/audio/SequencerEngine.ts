@@ -88,18 +88,18 @@ class SequencerEngineImpl {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(accent ? 1320 : 880, when);
-    osc.frequency.exponentialRampToValueAtTime(accent ? 780 : 540, when + 0.024);
+    osc.frequency.setValueAtTime(accent ? 1560 : 1040, when);
+    osc.frequency.exponentialRampToValueAtTime(accent ? 920 : 640, when + 0.022);
 
-    const peakGain = Math.max(0.0001, (accent ? 0.36 : 0.22) * vol);
+    const peakGain = Math.max(0.0001, (accent ? 0.55 : 0.36) * vol);
     gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.linearRampToValueAtTime(peakGain, when + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.044);
+    gain.gain.linearRampToValueAtTime(peakGain, when + 0.0015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.045);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(when);
-    osc.stop(when + 0.05);
+    osc.stop(when + 0.052);
   }
 
   private startStandaloneMetronome(): void {
@@ -274,14 +274,16 @@ class SequencerEngineImpl {
       const stepBeats = 0.0625; // 1/16th of a beat (= 1/64th note resolution)
       const windowEndBeat = Math.min(totalBeats, Math.max(0, windowStartBeat) + stepBeats);
 
-      // Metronome on integer beats
+      // Metronome on EVERY integer beat (fixed 4/4: accent on beat 1 of each bar)
+      // Always audible when recording a sequence OR when metronome switch is ON.
       if (state.metronomeOn || this.isRecording) {
-        const prevBeatInt = Math.floor(windowStartBeat);
-        const curBeatInt = Math.floor(windowEndBeat - 1e-6);
-        if (curBeatInt > prevBeatInt && curBeatInt >= 0 && curBeatInt < totalBeats) {
-          const clickTime = this.loopStartAudioTime + curBeatInt * spb;
-          if (clickTime >= now - 0.02) {
-            this.playMetronomeClick(Math.max(now, clickTime), curBeatInt % 4 === 0);
+        const firstBeat = Math.floor(windowStartBeat + 1e-7) + 1;
+        for (let b = firstBeat; b <= windowEndBeat + 1e-7; b++) {
+          if (b >= 0 && b < totalBeats) {
+            const clickTime = this.loopStartAudioTime + b * spb;
+            if (clickTime >= now - 0.025) {
+              this.playMetronomeClick(Math.max(now, clickTime), b % 4 === 0);
+            }
           }
         }
       }
