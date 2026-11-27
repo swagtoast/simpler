@@ -8,11 +8,14 @@ import { SampleView } from './ui/views/SampleView';
 import { SequenceView } from './ui/views/SequenceView';
 import { PerformView } from './ui/views/PerformView';
 import { WorkshopQRModal } from './ui/components/WorkshopQRModal';
+import { YouTubeFloatingPlayer } from './ui/components/YouTubeFloatingPlayer';
 
 export const App: React.FC = () => {
   const initApp = useStore((s) => s.initApp);
   const activeTab = useStore((s) => s.activeTab);
   const toastMessage = useStore((s) => s.toastMessage);
+  const floatingYouTube = useStore((s) => s.floatingYouTube);
+  const setFloatingYouTube = useStore((s) => s.setFloatingYouTube);
   const setAudioUnlocked = useStore((s) => s.setAudioUnlocked);
 
   useEffect(() => {
@@ -45,6 +48,13 @@ export const App: React.FC = () => {
       </main>
 
       <WorkshopQRModal />
+
+      {floatingYouTube && (
+        <YouTubeFloatingPlayer
+          video={floatingYouTube}
+          onClose={() => setFloatingYouTube(null)}
+        />
+      )}
 
       {toastMessage && (
         <div className="toast" role="status" aria-live="polite">

@@ -179,11 +179,13 @@ class SequencerEngineImpl {
     const startAt = ctx.currentTime + 0.04;
 
     if (withRecord && state.countInOn) {
-      // 4-beat friendly count-in before bar 1 begins!
+      // 4-beat friendly count-in before bar 1 begins (audible ONLY if metronome icon is ON!)
       this.countingIn = true;
       this.countInBeat = 1;
-      for (let b = 0; b < 4; b++) {
-        this.playMetronomeClick(startAt + b * spb, b === 0);
+      if (state.metronomeOn) {
+        for (let b = 0; b < 4; b++) {
+          this.playMetronomeClick(startAt + b * spb, b === 0);
+        }
       }
       this.loopStartAudioTime = startAt + 4 * spb;
       this.lastScheduledBeat = -0.0001;
@@ -216,9 +218,6 @@ class SequencerEngineImpl {
     this.recentlyRecordedIds.clear();
     voiceManager.stopAll();
     useStore.getState().setSeqTransport(false, false, false, 0);
-    if (useStore.getState().metronomeOn) {
-      useStore.getState().setMetronomeOn(false);
-    }
   }
 
   togglePlay(): void {
@@ -266,6 +265,12 @@ class SequencerEngineImpl {
     if (!seq) return;
 
     const totalBeats = Math.max(4, seq.bars * 4);
+    // Safe wrap if user switches live (e.g. in Perform) from a longer sequence to a shorter one
+    if (this.lastScheduledBeat >= totalBeats) {
+      this.lastScheduledBeat = this.lastScheduledBeat % totalBeats;
+      this.loopStartAudioTime = now - Math.max(0, this.lastScheduledBeat) * spb;
+      this.nextTickTime = now;
+    }
     const horizonTime = now + this.LOOKAHEAD_SEC;
 
     // Schedule metronome clicks & notes up to horizonTime
@@ -274,9 +279,8 @@ class SequencerEngineImpl {
       const stepBeats = 0.0625; // 1/16th of a beat (= 1/64th note resolution)
       const windowEndBeat = Math.min(totalBeats, Math.max(0, windowStartBeat) + stepBeats);
 
-      // Metronome on EVERY integer beat (fixed 4/4: accent on beat 1 of each bar)
-      // Always audible when recording a sequence OR when metronome switch is ON.
-      if (state.metronomeOn || this.isRecording) {
+      // Metronome strictly follows the TopBar metronome icon in both PLAY and REC modes (fixed 4/4)
+      if (state.metronomeOn) {
         const firstBeat = Math.floor(windowStartBeat + 1e-7) + 1;
         for (let b = firstBeat; b <= windowEndBeat + 1e-7; b++) {
           if (b >= 0 && b < totalBeats) {

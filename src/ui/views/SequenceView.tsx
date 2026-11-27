@@ -3,7 +3,6 @@ import {
   Play,
   Square,
   Circle,
-  Volume2,
   Grid,
   Download,
   Plus,
@@ -39,7 +38,6 @@ export const SequenceView: React.FC = () => {
   const isSeqRecording = useStore((s) => s.isSeqRecording);
   const isCountingIn = useStore((s) => s.isCountingIn);
   const countInBeat = useStore((s) => s.countInBeat);
-  const metronomeOn = useStore((s) => s.metronomeOn);
   const songMode = useStore((s) => s.songMode);
   const pianoRollOpen = useStore((s) => s.pianoRollOpen);
   const exportModalOpen = useStore((s) => s.exportModalOpen);
@@ -151,16 +149,6 @@ export const SequenceView: React.FC = () => {
           <span>
             {isCountingIn ? `COUNT ${countInBeat}` : isSeqRecording ? 'REC ON' : 'REC'}
           </span>
-        </button>
-
-        <button
-          type="button"
-          className={`pill-btn ${metronomeOn ? 'active-primary' : ''}`}
-          onClick={() => sequencerEngine.toggleMetronome()}
-          title={t('clickTitle')}
-        >
-          <Volume2 size={13} />
-          <span>CLICK</span>
         </button>
 
         <button

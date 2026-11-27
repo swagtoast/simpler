@@ -6,7 +6,6 @@ import {
   Play,
   Square,
   Circle,
-  Volume2,
   Eraser,
 } from 'lucide-react';
 import { useStore } from '../../state/useStore';
@@ -36,7 +35,6 @@ export const KeyboardOverlay: React.FC = () => {
   const isSeqRecording = useStore((s) => s.isSeqRecording);
   const isCountingIn = useStore((s) => s.isCountingIn);
   const countInBeat = useStore((s) => s.countInBeat);
-  const metronomeOn = useStore((s) => s.metronomeOn);
 
   const clearPadFromSequence = useStore((s) => s.clearPadFromSequence);
   const setKeyboardOpen = useStore((s) => s.setKeyboardOpen);
@@ -198,16 +196,6 @@ export const KeyboardOverlay: React.FC = () => {
             <span>
               {isCountingIn ? `${countInBeat}/4` : isSeqRecording ? 'REC' : 'REC'}
             </span>
-          </button>
-
-          <button
-            type="button"
-            className={`pill-btn ${metronomeOn ? 'active-primary' : ''}`}
-            style={{ height: 32, padding: '0 8px' }}
-            onClick={() => sequencerEngine.toggleMetronome()}
-            title={t('metroTitle')}
-          >
-            <Volume2 size={13} />
           </button>
 
           {activeSeq && pad && padNoteCount > 0 && (

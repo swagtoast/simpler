@@ -19,6 +19,7 @@ import { PadGrid } from '../components/PadGrid';
 import { SampleEditorDrawer } from './SampleEditorDrawer';
 import { KeyboardOverlay } from '../components/KeyboardOverlay';
 import { VideoImportModal } from '../components/VideoImportModal';
+import { ImportModal } from '../components/ImportModal';
 import { t } from '../../i18n/t';
 
 export const SampleView: React.FC = () => {
@@ -42,10 +43,13 @@ export const SampleView: React.FC = () => {
   const setKeyboardOpen = useStore((s) => s.setKeyboardOpen);
   const setRecordingState = useStore((s) => s.setRecordingState);
   const assignSampleToPad = useStore((s) => s.assignSampleToPad);
+  const setFloatingYouTube = useStore((s) => s.setFloatingYouTube);
   const showToast = useStore((s) => s.showToast);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const audioInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
   const micLedRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
 
@@ -148,8 +152,8 @@ export const SampleView: React.FC = () => {
     }
   };
 
-  const triggerFilePicker = () => {
-    fileInputRef.current?.click();
+  const openImportModal = () => {
+    setImportModalOpen(true);
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,10 +202,18 @@ export const SampleView: React.FC = () => {
 
   return (
     <section className="sample-view" aria-label="Sample View">
+      {/* Separate Audio & Video inputs so iPhone Safari opens Files for audio samples and Gallery for screen-rec videos! */}
       <input
-        ref={fileInputRef}
+        ref={audioInputRef}
         type="file"
-        accept="audio/*,video/*"
+        accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac,.aac,.aif,.aiff"
+        style={{ display: 'none' }}
+        onChange={handleImportFile}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*,.mp4,.mov,.m4v,.webm"
         style={{ display: 'none' }}
         onChange={handleImportFile}
       />
@@ -248,7 +260,7 @@ export const SampleView: React.FC = () => {
             type="button"
             className="pill-btn"
             disabled={importing}
-            onClick={triggerFilePicker}
+            onClick={openImportModal}
             title={t('importBtnTitle')}
           >
             <Film size={13} />
@@ -433,8 +445,21 @@ export const SampleView: React.FC = () => {
         </div>
       </div>
 
-      {editorOpen && <SampleEditorDrawer onRequestImport={triggerFilePicker} />}
+      {editorOpen && <SampleEditorDrawer onRequestImport={openImportModal} />}
       {keyboardOpen && <KeyboardOverlay />}
+
+      {importModalOpen && (
+        <ImportModal
+          targetCode={selectedCode}
+          onPickAudio={() => audioInputRef.current?.click()}
+          onPickVideo={() => videoInputRef.current?.click()}
+          onOpenYouTube={(parsed) => {
+            setImportModalOpen(false);
+            setFloatingYouTube(parsed);
+          }}
+          onClose={() => setImportModalOpen(false)}
+        />
+      )}
 
       {pendingVideoFile && (
         <VideoImportModal

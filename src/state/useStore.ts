@@ -15,6 +15,7 @@ import { audioEngine } from '../audio/AudioEngine';
 import { voiceManager } from '../audio/VoiceManager';
 import { generateStarterKit } from '../audio/StarterKit';
 import { PerformFxId } from '../audio/PerformFxEngine';
+import { ParsedYouTubeUrl } from '../utils/youtube';
 import { t } from '../i18n/t';
 import { cropBuffer, normalizeBuffer } from '../audio/AutoChop';
 import {
@@ -82,6 +83,7 @@ export interface AppState {
   padMixerMode: boolean;
   fxHold: boolean;
   fxValues: Record<PerformFxId, number>;
+  floatingYouTube: ParsedYouTubeUrl | null;
 
   // Actions
   initApp: () => Promise<void>;
@@ -162,6 +164,7 @@ export interface AppState {
   setFxValue: (id: PerformFxId, value: number) => void;
   toggleFxHold: () => void;
   resetAllFx: () => void;
+  setFloatingYouTube: (video: ParsedYouTubeUrl | null) => void;
 }
 
 let toastTimer: number | null = null;
@@ -220,6 +223,7 @@ export const useStore = create<AppState>((set, get) => {
       reverb: 0,
       stutter: 0,
     },
+    floatingYouTube: null,
 
     initApp: async () => {
       if (get().initialized) return;
@@ -924,5 +928,7 @@ export const useStore = create<AppState>((set, get) => {
         },
       });
     },
+
+    setFloatingYouTube: (video) => set({ floatingYouTube: video }),
   };
 });

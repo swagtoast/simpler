@@ -1,7 +1,7 @@
 import { audioEngine } from './AudioEngine';
 import { t } from '../i18n/t';
 
-export type RecordingSource = 'mic' | 'resample' | 'video';
+export type RecordingSource = 'mic' | 'resample' | 'video' | 'tab';
 
 interface ActiveCapture {
   source: RecordingSource;
@@ -19,6 +19,7 @@ interface ActiveCapture {
 
 class RecorderServiceImpl {
   private micStream: MediaStream | null = null;
+  private tabStream: MediaStream | null = null;
   private micMonitorSource: MediaStreamAudioSourceNode | null = null;
   private micMonitorAnalyser: AnalyserNode | null = null;
   private micMonitorData = new Float32Array(256);
@@ -40,6 +41,50 @@ class RecorderServiceImpl {
 
   get hasMicStream(): boolean {
     return !!(this.micStream && this.micStream.active);
+  }
+
+  get supportsTabAudioCapture(): boolean {
+    return (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.mediaDevices?.getDisplayMedia === 'function'
+    );
+  }
+
+  async ensureTabAudioStream(): Promise<MediaStream> {
+    if (this.tabStream && this.tabStream.active && this.tabStream.getAudioTracks().length > 0) {
+      return this.tabStream;
+    }
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+      throw new Error(t('ytTabUnsupported'));
+    }
+
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      } as MediaTrackConstraints,
+      preferCurrentTab: true,
+    } as DisplayMediaStreamOptions);
+
+    if (stream.getAudioTracks().length === 0) {
+      stream.getTracks().forEach((tr) => tr.stop());
+      throw new Error(t('ytTabNoAudio'));
+    }
+
+    this.tabStream = stream;
+    stream.getAudioTracks()[0].onended = () => {
+      this.tabStream = null;
+    };
+    return stream;
+  }
+
+  stopTabStream(): void {
+    if (this.tabStream) {
+      this.tabStream.getTracks().forEach((tr) => tr.stop());
+      this.tabStream = null;
+    }
   }
 
   get currentInputPeak(): number {
@@ -134,10 +179,13 @@ class RecorderServiceImpl {
     let micSourceNode: MediaStreamAudioSourceNode | null = null;
     let customSourceNode: AudioNode | null = null;
 
-    // For mic: request stream FIRST while still inside user gesture on iOS!
+    // For mic/tab: request stream FIRST while still inside user gesture!
     let micStream: MediaStream | null = null;
+    let tabStream: MediaStream | null = null;
     if (source === 'mic') {
       micStream = await this.ensureMicStream();
+    } else if (source === 'tab') {
+      tabStream = await this.ensureTabAudioStream();
     }
 
     const ctx = await audioEngine.unlock();
@@ -149,6 +197,10 @@ class RecorderServiceImpl {
     let sourceNode: AudioNode;
     if (source === 'mic' && micStream) {
       micSourceNode = ctx.createMediaStreamSource(micStream);
+      sourceNode = micSourceNode;
+    } else if (source === 'tab' && tabStream) {
+      const audioOnlyStream = new MediaStream(tabStream.getAudioTracks());
+      micSourceNode = ctx.createMediaStreamSource(audioOnlyStream);
       sourceNode = micSourceNode;
     } else if (source === 'video' && customNode) {
       customSourceNode = customNode;

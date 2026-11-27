@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Play, Square, Lock, Unlock, RotateCcw, Radio } from 'lucide-react';
+import { Play, Square, Lock, Unlock, RotateCcw, Radio, Minus, Plus } from 'lucide-react';
 import { PERFORM_FX_LIST, PerformFxId } from '../../audio/PerformFxEngine';
 import { audioEngine } from '../../audio/AudioEngine';
 import { sequencerEngine } from '../../audio/SequencerEngine';
@@ -17,7 +17,12 @@ export const PerformView: React.FC = () => {
   const isRecording = useStore((s) => s.isRecording);
   const recordingSource = useStore((s) => s.recordingSource);
   const pads = useStore((s) => s.project.pads);
+  const sequences = useStore((s) => s.project.sequences);
+  const activeSequenceId = useStore((s) => s.activeSequenceId);
+  const songMode = useStore((s) => s.songMode);
 
+  const selectSequence = useStore((s) => s.selectSequence);
+  const toggleSongMode = useStore((s) => s.toggleSongMode);
   const setFxValue = useStore((s) => s.setFxValue);
   const toggleFxHold = useStore((s) => s.toggleFxHold);
   const resetAllFx = useStore((s) => s.resetAllFx);
@@ -113,12 +118,24 @@ export const PerformView: React.FC = () => {
   };
 
   const anyActive = Object.values(fxValues).some((v) => v > 0.01);
+  const activeSeqIdx = Math.max(
+    0,
+    sequences.findIndex((s) => s.id === activeSequenceId)
+  );
+  const activeSeq = sequences[activeSeqIdx] ?? sequences[0];
+
+  const stepSequence = (delta: number) => {
+    if (sequences.length === 0) return;
+    if (songMode) toggleSongMode();
+    const nextIdx = (activeSeqIdx + delta + sequences.length) % sequences.length;
+    selectSequence(sequences[nextIdx].id);
+  };
 
   return (
     <section className="perform-view" aria-label="Perform FX View">
       {/* Clean Hardware Control Row */}
       <div className="perform-toolbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <button
             type="button"
             className={`seq-big-btn ${isSeqPlaying ? 'playing' : ''}`}
@@ -127,6 +144,36 @@ export const PerformView: React.FC = () => {
             {isSeqPlaying ? <Square size={14} /> : <Play size={14} />}
             <span>{isSeqPlaying ? 'STOP' : 'PLAY'}</span>
           </button>
+
+          {/* Live Active Sequence Switcher (- / SEQ / +) */}
+          {activeSeq && (
+            <div className="perf-seq-switcher">
+              <button
+                type="button"
+                className="perf-seq-step"
+                onClick={() => stepSequence(-1)}
+                title={t('perfSeqPrev')}
+                aria-label={t('perfSeqPrev')}
+              >
+                <Minus size={13} />
+              </button>
+              <div className="perf-seq-lcd">
+                <span className="perf-seq-name">{activeSeq.name.toUpperCase()}</span>
+                <span className="perf-seq-meta">
+                  {activeSeq.bars}B{activeSeq.notes.length > 0 ? ' ●' : ''}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="perf-seq-step"
+                onClick={() => stepSequence(1)}
+                title={t('perfSeqNext')}
+                aria-label={t('perfSeqNext')}
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          )}
 
           <button
             type="button"
